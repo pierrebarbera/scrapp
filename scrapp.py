@@ -5,43 +5,10 @@ import glob
 import os
 import subprocess
 import sys
+import scripts.util as util
 
 execfile( "deps/parallel_decorators/parallel_decorators.py" )
 
-# ==================================================================================================
-#     Sub-Program Commands
-# ==================================================================================================
-
-def subprogram_commands():
-    """
-    Return a list of the sub program commands.
-    """
-
-    # Get the dir where the script is located. The first variant expects that this is the main
-    # script. The second one might however break on a different OS. Needs to be tested.
-    # basedir = os.path.abspath( os.path.dirname(sys.argv[0]) )
-    basedir = os.path.dirname( os.path.abspath( os.path.realpath( __file__ )))
-
-    # We currently expect all sub-programs to be located in sub-directories of our tool.
-    # Maybe this should go into a config file which also allows to use actual commands,
-    # in case that raxml-ng or mptp is actually installed on the system already.
-    paths = {
-        "alignment_splitter" : basedir + "/genesis/bin/apps/",
-        "mptp"               : basedir + "/mptp/bin/mptp",
-        "raxml-ng"           : basedir + "/raxml-ng/..."
-    }
-    return paths
-
-def subprograms_exist( paths ):
-    """
-    Check whether all subprograms actually exists. Throw otherwise.
-    """
-
-    for name, cmd in paths.iteritems():
-        if not os.path.isfile( cmd ):
-            raise RuntimeError(
-                "Subprogram '" + name + "' not found at '" + cmd + "'. Please run setup first."
-            )
 
 # ==================================================================================================
 #     Command Line Args
@@ -252,7 +219,7 @@ def call_with_check_file(
 
 if __name__ == "__main__":
     # Get all needed input.
-    paths = subprogram_commands()
+    paths = util.subprogram_commands()
     args  = command_line_args()
 
     # -------------------------------------------------------------------------
