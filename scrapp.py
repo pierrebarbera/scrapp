@@ -222,9 +222,13 @@ def call_with_check_file(
         # Prepare out and err files, if needed.
         out_file = None
         if out_file_path is not None:
+            if not os.path.exists( os.path.dirname( out_file_path )):
+                os.makedirs( os.path.dirname( out_file_path ))
             out_file = open( out_file_path, "w" )
         err_file = None
         if err_file_path is not None:
+            if not os.path.exists( os.path.dirname( err_file_path )):
+                os.makedirs( os.path.dirname( err_file_path ))
             err_file = open( err_file_path, "w" )
 
         # Call the command and record its exit code.
