@@ -15,8 +15,7 @@ def fatal(msg=""):
 # git
 # flex
 # bison
-# 
-
+#
 
 
 # TODO ensure setups are always rerun completely, incase the user updates the submodule
@@ -33,4 +32,5 @@ for name, cmd in progs.iteritems():
     print "Checking for " + name + "..."
     if not os.path.isfile( cmd ):
         print name + " was not found at path " + cmd + "!"
-        util.try_resolve(name)
+        if ( util.try_resolve(name) != 0 ):
+            raise RuntimeError( "Failed to resolve " + name )

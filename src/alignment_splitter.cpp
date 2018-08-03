@@ -31,6 +31,7 @@ using namespace genesis;
 using namespace genesis::placement;
 using namespace genesis::sequence;
 using namespace genesis::tree;
+using namespace genesis::utils;
 
 // =================================================================================================
 //     Main
@@ -187,8 +188,12 @@ int main( int argc, char** argv )
             continue;
         }
 
+        // create edge outdir
+        auto edge_dir = output_dir + "edge_" + std::to_string( edge_index ) + "/";
+        dir_create(edge_dir);
+
         // Write to Phylip.
-        std::string output_file = output_dir + "edge_" + std::to_string( edge_index ) + ".phylip";
+        std::string output_file = edge_dir + "aln.phylip";
         phylip_writer.to_file( edge_seqs[ edge_index ], output_file );
     }
 

@@ -11,7 +11,7 @@ import urllib2
 # script. The second one might however break on a different OS. Needs to be tested.
 # basedir = os.path.abspath( os.path.dirname(sys.argv[0]) )
 basedir = os.path.abspath( os.path.realpath( os.path.join(
-            os.path.dirname( os.path.abspath( os.path.realpath( __file__ ))), 
+            os.path.dirname( os.path.abspath( os.path.realpath( __file__ ))),
             "../deps/")))
 
 # We currently expect all sub-programs to be located in sub-directories of our tool.
@@ -21,10 +21,12 @@ prog_paths = {
     "alignment_splitter" : [basedir + "/genesis/bin/apps/"
                             ],
     "mptp"               : [basedir + "/mptp/bin/",         ],
-    "raxml-ng"           : [basedir + "/raxml-ng/bin/",     
+    "raxml-ng"           : [basedir + "/raxml-ng/bin/",
                             "https://github.com/amkozlov/raxml-ng/releases/download/0.4.1/raxml-ng_v0.4.1b"
                             ]
 }
+
+FNULL = open(os.devnull, 'wb')
 
 # ==================================================================================================
 #     general util
@@ -39,8 +41,6 @@ def get_platform():
 
     intrin = []
     tested_vecs = ["sse3", "avx", "avx2", "avx512"]
-
-    FNULL = open(os.devnull, 'wb')
 
     for vec in tested_vecs:
         if sub.call(["grep", vec, "/proc/cpuinfo"], stdout=FNULL, stderr=FNULL) == 0:
@@ -97,31 +97,45 @@ def try_resolve_raxmlng(machine = get_platform()):
 
     (oper, arch, intrin) = machine
 
-    # if binary doesn't exist, see if binary exists online
-    url = entry[1]
-    core_rax = "_" + oper + "_" + arch 
-    base_rax_url = url + core_rax + ".zip"
-    # mpi_rax_url = url + core_rax + "_MPI" + ".zip"
+    raxmldir = os.path.join(basedir, "raxml-ng")
 
-    print "Trying to download raxml-ng binary..." 
-    filepath = try_fetch(base_rax_url, binpath)
+    sub.call(["mkdir", "-p", os.path.join(raxmldir, "build")], stdout=FNULL)
+    sub.call(["cmake", ".."], cwd=os.path.join(raxmldir, "build"), stdout=FNULL)
+    return sub.call(["make"], cwd=os.path.join(raxmldir, "build"), stdout=FNULL)
 
-    if filepath:
-        print "Extracting..."
-        extract(filepath)
-        print "Done!"
+    # # if binary doesn't exist, see if binary exists online
+    # url = entry[1]
+    # core_rax = "_" + oper + "_" + arch
+    # base_rax_url = url + core_rax + ".zip"
+    # # mpi_rax_url = url + core_rax + "_MPI" + ".zip"
+
+    # print "Trying to download raxml-ng binary..."
+    # filepath = try_fetch(base_rax_url, binpath)
+
+    # if filepath:
+    #     print "Extracting..."
+    #     extract(filepath)
+    #     print "Done!"
 
     # TODO: set access modifier
-    
+
     # TODO: case: cannot fetch by url -> try source
-    
-    print "Resolving raxml-ng was successful!"
+
 
 def try_resolve_mptp(machine = get_platform()):
-    return
+    mptpdir = os.path.join(basedir, "mptp")
+    # autogen, configure, make
+    sub.call([os.path.join(mptpdir, "autogen.sh")], stdout=FNULL)
+    sub.call([os.path.join(mptpdir, "configure")], stdout=FNULL)
+    return sub.call(["make", "-C", mptpdir], stdout=FNULL)
 
 def try_resolve_alignment_splitter(machine = get_platform()):
-    return
+    genesisdir = os.path.join(basedir, "genesis")
+    # ensure the symlink exists
+    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(basedir + "../src")], stdout=FNULL)
+
+    # make update on genesis
+    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
 
 def try_resolve(name, machine = get_platform()):
     print "Trying to resolve " + name + "..."
@@ -148,7 +162,7 @@ def subprogram_commands():
 
     for name, etc in prog_paths.iteritems():
         paths[name] = etc[0] + name
-    
+
     return paths
 
 def subprograms_exist( paths ):

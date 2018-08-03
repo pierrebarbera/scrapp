@@ -7,7 +7,9 @@ import subprocess
 import sys
 import scripts.util as util
 
-execfile( "deps/parallel_decorators/parallel_decorators.py" )
+base_dir_ = os.path.dirname( os.path.realpath(__file__) )
+
+execfile( os.path.join( base_dir_, "deps/parallel_decorators/parallel_decorators.py" ) )
 
 
 # ==================================================================================================
@@ -94,7 +96,7 @@ def command_line_args_parser():
         help="Minimum weight threshold for placements. Everything below is filtered out.",
         action='store', dest='min_weight',
         type=min_weight_float,
-        default=1.0
+        default=0.5
     )
 
     return parser
@@ -164,15 +166,17 @@ def call_with_check_file(
     before or not.
     """
 
+    cmd_string = " ".join(cmd_to_call)
+
     if verbose:
-        print "Running command: " + cmd_to_call
+        print "Running command: " + cmd_string
 
     # If the check file exists, it has to contain the exact same command.
     if os.path.isfile( check_file_path ):
         with open( check_file_path, 'r') as check_file_handle:
             check_file_content = check_file_handle.read()
 
-        if check_file_content == cmd_to_call:
+        if check_file_content == cmd_string:
             if verbose:
                 print "Already did this step. Skipping."
             return True
@@ -199,8 +203,7 @@ def call_with_check_file(
             err_file = open( err_file_path, "w" )
 
         # Call the command and record its exit code.
-        # success = ( subprocess.call( cmd_to_call, stdout=out_file, stderr=err_file ) == 0 )
-        success = True
+        success = ( subprocess.call( cmd_to_call, stdout=out_file, stderr=err_file ) == 0 )
 
         # If we were not successfull, end the function here.
         if not success:
@@ -210,7 +213,7 @@ def call_with_check_file(
         if not os.path.exists( os.path.dirname( check_file_path )):
             os.makedirs( os.path.dirname( check_file_path ))
         with open( check_file_path, "w") as check_file_handle:
-            check_file_handle.write( cmd_to_call )
+            check_file_handle.write( cmd_string )
         return success
 
 # ==================================================================================================
@@ -253,11 +256,14 @@ if __name__ == "__main__":
         # Compose the command line args for the call, then execute it.
         aln_splitter_chk_file = os.path.join( args.work_dir, "alignment_splitter_cmd.txt" )
         aln_splitter_out_file = os.path.join( args.work_dir, "alignment_splitter_log.txt" )
-        aln_splitter_cmd = " ".join([
+
+        aln_splitter_cmd = [
             paths[ "alignment_splitter" ],
             args.jplace_file,
-            args.aln_file
-        ])
+            args.aln_file,
+            args.work_dir,
+            str(args.min_weight)
+        ]
         succ = call_with_check_file(
             aln_splitter_cmd,
             aln_splitter_chk_file,
@@ -286,6 +292,7 @@ if __name__ == "__main__":
         # This is then internally overriden by a broadcast of the actual list of the master rank.
         edge_list = []
 
+
     # -------------------------------------------------------------------------
     #     RAxML Tree Inferrence
     # -------------------------------------------------------------------------
@@ -296,13 +303,16 @@ if __name__ == "__main__":
     # but use the threads again internally for the RAxML instance.
     @vectorize_parallel( method = 'adaptive', num_procs = 1 )
     def run_raxml_processes( edge_dir, work_dir ):
-        raxml_chk_file = os.path.join( args.work_dir, edge_dir, "raxml_cmd.txt" )
-        raxml_out_file = os.path.join( args.work_dir, edge_dir, "raxml_log.txt" )
-        raxml_cmd = " ".join([
-            paths[ "raxml-ng" ],
+        raxml_out_dir = os.path.join( args.work_dir, edge_dir, "search")
+        raxml_chk_file = os.path.join( raxml_out_dir, "raxml_cmd.txt" )
+        raxml_out_file = os.path.join( raxml_out_dir, "raxml_log.txt" )
+
+        raxml_cmd = [
+            paths[ "raxml-ng" ], "--search",
             "--msa", os.path.join( args.work_dir, edge_dir, "aln.phylip" ),
-            "--threads", str(args.num_threads)
-        ])
+            "--threads", str(args.num_threads),
+            "--prefix", raxml_out_dir + "/s"
+        ]
         succ = call_with_check_file(
             raxml_cmd,
             raxml_chk_file,
@@ -313,8 +323,7 @@ if __name__ == "__main__":
         print "done", mpi_rank(), succ
         return succ
 
-    run_raxml_processes( ["one", "two", "three"], "hooray" )
-    # run_raxml_processes( edge_list, args.work_dir )
+    run_raxml_processes( [ edge_list[0] ], args.work_dir )
 
     # Tests
     # @vectorize_parallel( method = 'MPI' )
@@ -322,6 +331,34 @@ if __name__ == "__main__":
     #     print list, mpi_rank()
     # simple_test( [1,2,3] )
     # print "whoami", mpi_rank(), mpi_size(), is_master()
+
+    # -------------------------------------------------------------------------
+    #     Species Delimitation
+    # -------------------------------------------------------------------------
+    @vectorize_parallel( method = 'adaptive', num_procs = 1 )
+    def run_mptp_processes( edge_dir, work_dir ):
+        mptp_out_dir = os.path.join( args.work_dir, edge_dir, "delimit")
+        mptp_chk_file = os.path.join( mptp_out_dir, "mptp_cmd.txt" )
+        mptp_out_file = os.path.join( mptp_out_dir, "mptp_log.txt" )
+
+        mptp_cmd = [
+            paths[ "mptp" ],
+            "--tree_file", os.path.join( args.work_dir, edge_dir, "search", "*.bestTree" ), #TODO actual name
+            "--msa", os.path.join( args.work_dir, edge_dir, "aln.phylip" ),
+            "--threads", str(args.num_threads),
+            "--output_file",  os.path.join(mptp_out_dir, "mptp_result.txt")
+        ]
+        succ = call_with_check_file(
+            mptp_cmd,
+            mptp_chk_file,
+            out_file_path=mptp_out_file,
+            err_file_path=mptp_out_file,
+            verbose=args.verbose
+        )
+        print "done", mpi_rank(), succ
+        return succ
+
+    run_mptp_processes( [ edge_list[0] ], args.work_dir )
 
     if is_master():
         print "Finished!"
