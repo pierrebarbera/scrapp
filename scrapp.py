@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import scripts.util as util
+import time
 
 base_dir_ = os.path.dirname( os.path.realpath(__file__) )
 
@@ -225,6 +226,8 @@ if __name__ == "__main__":
     paths = util.subprogram_commands()
     args  = command_line_args()
 
+    runtimes = []
+
     # -------------------------------------------------------------------------
     #     Initial Master Work
     # -------------------------------------------------------------------------
@@ -264,6 +267,7 @@ if __name__ == "__main__":
             args.work_dir,
             str(args.min_weight)
         ]
+        runtime = time.time()
         succ = call_with_check_file(
             aln_splitter_cmd,
             aln_splitter_chk_file,
@@ -271,6 +275,8 @@ if __name__ == "__main__":
             err_file_path=aln_splitter_out_file,
             verbose=args.verbose
         )
+        runtime = time.time() - runtime
+        runtimes.append({"name":"alignment_splitter", "time":str(runtime)})
 
         # We only continue with the script if the alignment splitting was successfull.
         if not succ:
@@ -292,6 +298,7 @@ if __name__ == "__main__":
         # This is then internally overriden by a broadcast of the actual list of the master rank.
         edge_list = []
 
+    # edge_list = [edge_list[0]]
 
     # -------------------------------------------------------------------------
     #     RAxML Tree Inferrence
@@ -311,19 +318,27 @@ if __name__ == "__main__":
             paths[ "raxml-ng" ], "--search",
             "--msa", os.path.join( args.work_dir, edge_dir, "aln.phylip" ),
             "--threads", str(args.num_threads),
-            "--prefix", raxml_out_dir + "/s"
+            "--prefix", raxml_out_dir + "/s",
+            "--model", "GTR+G"
         ]
-        succ = call_with_check_file(
+
+        if ( not call_with_check_file(
             raxml_cmd,
             raxml_chk_file,
             out_file_path=raxml_out_file,
             err_file_path=raxml_out_file,
             verbose=args.verbose
-        )
+        ) ):
+            raise RuntimeError( "raxml has failed!" )
+
+
         print "done", mpi_rank(), succ
         return succ
 
-    run_raxml_processes( [ edge_list[0] ], args.work_dir )
+    runtime = time.time()
+    run_raxml_processes( edge_list, args.work_dir )
+    runtime = time.time() - runtime
+    runtimes.append({"name":"raxml-ng", "time":str(runtime)})
 
     # Tests
     # @vectorize_parallel( method = 'MPI' )
@@ -343,22 +358,29 @@ if __name__ == "__main__":
 
         mptp_cmd = [
             paths[ "mptp" ],
-            "--tree_file", os.path.join( args.work_dir, edge_dir, "search", "*.bestTree" ), #TODO actual name
-            "--msa", os.path.join( args.work_dir, edge_dir, "aln.phylip" ),
-            "--threads", str(args.num_threads),
+            "--tree_file", os.path.join( args.work_dir, edge_dir, "search", "s.raxml.bestTree" ), #TODO actual name
+            "--ml", "--multi",
             "--output_file",  os.path.join(mptp_out_dir, "mptp_result.txt")
         ]
-        succ = call_with_check_file(
+
+        if ( not call_with_check_file(
             mptp_cmd,
             mptp_chk_file,
             out_file_path=mptp_out_file,
             err_file_path=mptp_out_file,
             verbose=args.verbose
-        )
+        ) ):
+            raise RuntimeError( "mptp has failed!" )
+
+
         print "done", mpi_rank(), succ
         return succ
 
-    run_mptp_processes( [ edge_list[0] ], args.work_dir )
+    runtime = time.time()
+    run_mptp_processes( edge_list, args.work_dir )
+    runtime = time.time() - runtime
+    runtimes.append({"name":"mptp", "time":str(runtime)})
 
     if is_master():
         print "Finished!"
+        print runtimes
