@@ -25,6 +25,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <algorithm>
 #include <unordered_map>
 
 using namespace genesis;
@@ -46,9 +47,9 @@ int main( int argc, char** argv )
     LOG_INFO << "Started";
 
     // Check if the command line contains the right number of arguments.
-    if( argc != 4 && argc != 5 ) {
+    if( argc < 4 or argc > 6 ) {
         LOG_INFO << "Usage: " << argv[0] << " <jplace_file> <alignment_file> <output_dir> "
-                 << "[<min_weight>]";
+                 << "<min_weight> <min_num>";
         return 1;
     }
 
@@ -58,9 +59,11 @@ int main( int argc, char** argv )
     auto output_dir  = utils::trim_right( std::string( argv[3] ), "/") + "/";
 
     // If the argument is given, parse the min weight threshold.
-    double min_weight = 1.0;
-    if( argc == 5 ) {
+    double min_weight = 0.51;
+    size_t min_num = 4;
+    if( argc == 6 ) {
         min_weight = std::atof( argv[4] );
+        min_num = std::atoi( argv[5] );
     }
 
     // Read in placements.
@@ -173,6 +176,10 @@ int main( int argc, char** argv )
 
     // Clean up resulting edge alignments: Remove gap sites and duplicate sequences.
     LOG_INFO << "Cleaning sequences.";
+    std::remove_if(std::begin(edge_seqs), std::end(edge_seqs), [min_num](SequenceSet const& ss){
+        return ss.size() < min_num;
+    });
+
     for( auto& seq_set : edge_seqs) {
         remove_gap_sites( seq_set );
         merge_duplicate_sequences( seq_set );
