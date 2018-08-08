@@ -61,10 +61,15 @@ int main( int argc, char** argv )
     // If the argument is given, parse the min weight threshold.
     double min_weight = 0.51;
     size_t min_num = 4;
-    if( argc == 6 ) {
+    if( argc >= 5 ) {
         min_weight = std::atof( argv[4] );
+    }
+    if( argc == 6 ) {
         min_num = std::atoi( argv[5] );
     }
+
+    LOG_INFO << "Specified: min_weight\t= " << min_weight;
+    LOG_INFO << "Specified: min_num\t= " << min_num;
 
     // Read in placements.
     LOG_INFO << "Reading placements from jplace file.";
@@ -176,14 +181,15 @@ int main( int argc, char** argv )
 
     // Clean up resulting edge alignments: Remove gap sites and duplicate sequences.
     LOG_INFO << "Cleaning sequences.";
-    std::remove_if(std::begin(edge_seqs), std::end(edge_seqs), [min_num](SequenceSet const& ss){
-        return ss.size() < min_num;
-    });
 
     for( auto& seq_set : edge_seqs) {
         remove_gap_sites( seq_set );
         merge_duplicate_sequences( seq_set );
     }
+
+    edge_seqs.erase(std::remove_if(std::begin(edge_seqs), std::end(edge_seqs), [min_num](SequenceSet const& ss){
+        return ss.size() < min_num;
+    }), std::end(edge_seqs));
 
     // Write result files.
     LOG_INFO << "Writing result Phylip files.";
@@ -194,6 +200,8 @@ int main( int argc, char** argv )
         if( edge_seqs[ edge_index ].size() == 0 ) {
             continue;
         }
+
+        LOG_INFO << "\tEdge: " << edge_index << "    \tSize: " << edge_seqs[ edge_index ].size();
 
         // create edge outdir
         auto edge_dir = output_dir + "edge_" + std::to_string( edge_index ) + "/";
