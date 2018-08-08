@@ -187,17 +187,13 @@ int main( int argc, char** argv )
         merge_duplicate_sequences( seq_set );
     }
 
-    edge_seqs.erase(std::remove_if(std::begin(edge_seqs), std::end(edge_seqs), [min_num](SequenceSet const& ss){
-        return ss.size() < min_num;
-    }), std::end(edge_seqs));
-
     // Write result files.
     LOG_INFO << "Writing result Phylip files.";
     auto phylip_writer = PhylipWriter();
     for( size_t edge_index = 0; edge_index < edge_seqs.size(); ++edge_index ) {
 
         // Check: Don't need to write empty sequence files.
-        if( edge_seqs[ edge_index ].size() == 0 ) {
+        if( edge_seqs[ edge_index ].size() < min_num ) {
             continue;
         }
 
