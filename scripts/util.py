@@ -132,7 +132,7 @@ def try_resolve_mptp(machine = get_platform()):
 def try_resolve_alignment_splitter(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
     # ensure the symlink exists
-    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(basedir + "../src")], stdout=FNULL)
+    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/alignment_splitter.cpp"))], stdout=FNULL)
 
     # make update on genesis
     return sub.call(["make", "-C", genesisdir], stdout=FNULL)
