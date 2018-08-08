@@ -125,8 +125,8 @@ def try_resolve_raxmlng(machine = get_platform()):
 def try_resolve_mptp(machine = get_platform()):
     mptpdir = os.path.join(basedir, "mptp")
     # autogen, configure, make
-    sub.call([os.path.join(mptpdir, "autogen.sh")], stdout=FNULL)
-    sub.call([os.path.join(mptpdir, "configure")], stdout=FNULL)
+    sub.call([os.path.join(mptpdir, "autogen.sh")], cwd=mptpdir, stdout=FNULL)
+    sub.call([os.path.join(mptpdir, "configure")], cwd=mptpdir, stdout=FNULL)
     return sub.call(["make", "-C", mptpdir], stdout=FNULL)
 
 def try_resolve_alignment_splitter(machine = get_platform()):
