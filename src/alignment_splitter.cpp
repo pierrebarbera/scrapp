@@ -105,14 +105,14 @@ int main( int argc, char** argv )
     try{
         LOG_INFO << "Reading alignment as Phylip file.";
         auto phylip_reader = PhylipReader();
-        phylip_reader.to_upper( true );
+        phylip_reader.site_casing( PhylipReader::SiteCasing::kToLower );
         phylip_reader.from_file( aln_file, seqs );
     } catch( ... ) {
         LOG_INFO << "Phylip failed, trying Fasta now.";
         LOG_INFO << "Reading alignment as Fasta file.";
         seqs.clear();
         auto fasta_reader = FastaReader();
-        fasta_reader.to_upper( true );
+        fasta_reader.site_casing( FastaReader::SiteCasing::kToLower );
         fasta_reader.from_file( aln_file, seqs );
     }
 
