@@ -18,8 +18,8 @@ basedir = os.path.abspath( os.path.realpath( os.path.join(
 # Maybe this should go into a config file which also allows to use actual commands,
 # in case that raxml-ng or mptp is actually installed on the system already.
 prog_paths = {
-    "alignment_splitter" : [basedir + "/genesis/bin/apps/"
-                            ],
+    "alignment_splitter" : [basedir + "/genesis/bin/apps/"],
+    "get_all_rootings"     : [basedir + "/genesis/bin/apps/"],
     "mptp"               : [basedir + "/mptp/bin/",         ],
     "raxml-ng"           : [basedir + "/raxml-ng/bin/",
                             "https://github.com/amkozlov/raxml-ng/releases/download/0.4.1/raxml-ng_v0.4.1b"
@@ -137,6 +137,14 @@ def try_resolve_alignment_splitter(machine = get_platform()):
     # make update on genesis
     return sub.call(["make", "-C", genesisdir], stdout=FNULL)
 
+def try_resolve_get_all_rootings(machine = get_platform()):
+    genesisdir = os.path.join(basedir, "genesis")
+    # ensure the symlink exists
+    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/get_all_rootings.cpp"))], stdout=FNULL)
+
+    # make update on genesis
+    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+
 def try_resolve(name, machine = get_platform()):
     print "Trying to resolve " + name + "..."
     if name == "raxml-ng":
@@ -145,6 +153,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_mptp( machine )
     elif name == "alignment_splitter":
         return try_resolve_alignment_splitter( machine )
+    elif name == "get_all_rootings":
+        return try_resolve_get_all_rootings( machine )
     else:
         raise RuntimeError( "No such subprogram name: " + name )
 
