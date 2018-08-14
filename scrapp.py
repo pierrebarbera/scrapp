@@ -7,6 +7,7 @@ import subprocess
 import sys
 import scripts.util as util
 import time
+import pprint
 
 base_dir_ = os.path.dirname( os.path.realpath(__file__) )
 
@@ -222,6 +223,7 @@ def call_with_check_file(
 # ==================================================================================================
 
 if __name__ == "__main__":
+    pp = pprint.PrettyPrinter(indent=4)
     # Get all needed input.
     paths = util.subprogram_commands()
     args  = command_line_args()
@@ -252,7 +254,7 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
 
     # Call Genesis to split Jplace file into alignments per branch.
-    # We only do that onces in the master rank.
+    # We only do that once in the master rank.
     if is_master():
         print "Splitting alignment into per-branch alignments using jplace placements."
 
@@ -319,7 +321,7 @@ if __name__ == "__main__":
             "--msa", os.path.join( args.work_dir, edge_dir, "aln.phylip" ),
             "--threads", str(args.num_threads),
             "--prefix", raxml_out_dir + "/s",
-            "--model", "GTR+G"
+            "--model", "GTR+G", "--force"
         ]
 
         if ( not call_with_check_file(
@@ -348,29 +350,73 @@ if __name__ == "__main__":
     # print "whoami", mpi_rank(), mpi_size(), is_master()
 
     # -------------------------------------------------------------------------
-    #     Species Delimitation
+    #     get all possible rootings per tree
     # -------------------------------------------------------------------------
     @vectorize_parallel( method = 'adaptive', num_procs = 1 )
-    def run_mptp_processes( edge_dir, work_dir ):
-        mptp_out_dir = os.path.join( args.work_dir, edge_dir, "delimit")
-        mptp_chk_file = os.path.join( mptp_out_dir, "mptp_cmd.txt" )
-        mptp_out_file = os.path.join( mptp_out_dir, "mptp_log.txt" )
+    def run_rootings_processes( edge_dir, work_dir ):
+        rootings_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
+        rootings_chk_file = os.path.join( rootings_out_dir, "rootings_cmd.txt" )
+        rootings_out_file = os.path.join( rootings_out_dir, "rootings_log.txt" )
 
-        mptp_cmd = [
-            paths[ "mptp" ],
-            "--tree_file", os.path.join( args.work_dir, edge_dir, "search", "s.raxml.bestTree" ), #TODO actual name
-            "--ml", "--multi",
-            "--output_file",  os.path.join(mptp_out_dir, "mptp_result.txt")
+        rootings_cmd = [
+            paths[ "get_all_rootings" ],
+            os.path.join( args.work_dir, edge_dir, "search", "s.raxml.bestTree" ),
+            rootings_out_dir
         ]
 
         if ( not call_with_check_file(
-            mptp_cmd,
-            mptp_chk_file,
-            out_file_path=mptp_out_file,
-            err_file_path=mptp_out_file,
+            rootings_cmd,
+            rootings_chk_file,
+            out_file_path=rootings_out_file,
+            err_file_path=rootings_out_file,
             verbose=args.verbose
         ) ):
-            raise RuntimeError( "mptp has failed!" )
+            raise RuntimeError( "get_all_rootings has failed!" )
+
+
+        print "done", mpi_rank(), succ
+        return succ
+
+    runtime = time.time()
+    run_rootings_processes( edge_list, args.work_dir )
+    runtime = time.time() - runtime
+    runtimes.append({"name":"get_all_rootings", "time":str(runtime)})
+
+    # -------------------------------------------------------------------------
+    #     Species Delimitation
+    # -------------------------------------------------------------------------
+
+    @vectorize_parallel( method = 'adaptive', num_procs = 1 )
+    def run_mptp_processes( edge_dir, work_dir ):
+
+        # switch this via an option (best tree only vs. all rootings vs. longest edge rooting)
+        trees = glob.glob( os.path.join( args.work_dir, edge_dir, "trees", "*.newick") )
+        for tree in trees:
+            # get the name of the file to use as a subdirectory name
+            tree_name = os.path.basename( tree ).split(".", 2)[0]
+
+            # set the paths/files accordingly
+            mptp_out_dir = os.path.join( args.work_dir, edge_dir, "delimit", tree_name)
+            mptp_chk_file = os.path.join( mptp_out_dir, "mptp_cmd.txt" )
+            mptp_out_file = os.path.join( mptp_out_dir, "mptp_log.txt" )
+
+            mptp_cmd = [
+                paths[ "mptp" ],
+                "--tree_file", tree,
+                "--ml", "--multi",
+                "--output_file",  os.path.join( mptp_out_dir, "mptp_result.txt" )
+            ]
+
+            # do a delimitation per possible rooting
+
+            if ( not call_with_check_file(
+                mptp_cmd,
+                mptp_chk_file,
+                out_file_path=mptp_out_file,
+                err_file_path=mptp_out_file,
+                verbose=False
+            ) ):
+                raise RuntimeError( "mptp has failed!" )
 
 
         print "done", mpi_rank(), succ
@@ -381,6 +427,12 @@ if __name__ == "__main__":
     runtime = time.time() - runtime
     runtimes.append({"name":"mptp", "time":str(runtime)})
 
+    # -------------------------------------------------------------------------
+    #     Summarize Delimitation Results
+    # -------------------------------------------------------------------------
+
+
+
     if is_master():
         print "Finished!"
-        print runtimes
+        pp.pprint( runtimes )

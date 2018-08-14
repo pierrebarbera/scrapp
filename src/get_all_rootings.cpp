@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
 		throw std::runtime_error{std::string("output_dir doesn't exist or isnt a directory: ") + out_dir};
 	}
 
-	dir_normalize_path( out_dir );
+	out_dir = dir_normalize_path( out_dir );
 
 	// print the desired taxa lists to file, one per line
 	print_rootings( tree, out_dir );
