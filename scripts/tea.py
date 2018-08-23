@@ -1,4 +1,19 @@
 from os import path
+import json
+import StringIO as sio
+from collections import OrderedDict
+
+try:
+    import textwrap
+    textwrap.indent
+except AttributeError:  # undefined function (wasn't added until Python 3.3)
+    def indent(text, amount, ch=' '):
+        padding = amount * ch
+        return ''.join(padding+line for line in text.splitlines(True))
+else:
+    def indent(text, amount, ch=' '):
+        return textwrap.indent(text, amount * ch)
+
 
 class TEA:
   """Class holding Tree Edge Anntations. Ensures adherence to the related file format specifications"""
@@ -8,9 +23,6 @@ class TEA:
 
   _tree = "" #TODO internally as an actual tree? convert on write?
   _samples = []
-
-  # def __init__(self):
-  #   self.arg = arg
 
   def invocation(self, invocation_string):
     self._meta["invocation"] = invocation_string
@@ -30,10 +42,10 @@ class TEA:
   def tree(self):
     return self._tree
 
-  def sample(self, name):
-    # find sample with specified name
+  # def sample(self, name):
+  #   # find sample with specified name
 
-    # return it
+  #   # return it
 
   def add_annotation(self, sample_name, edge_id, annotations):
     """ adds an arbitrary number of key-value pairs ("annotations")
@@ -53,10 +65,33 @@ class TEA:
             edge_found = True
             a.append( annotations )
         if not edge_found:
-          annotations["edge"] = edge_id
-          s["annotation"].append( annotations )
+          # annotations["edge"] = edge_id
+          s["annotation"].append(
+            OrderedDict( [("edge", edge_id)] + sorted(annotations.items()) )
+          )
 
     if not sample_found:
       annotations["edge"] = edge_id
       self._samples.append( { "name": sample_name,
-                              "annotation": [ annotations ]})
+                              "annotation": [
+                                OrderedDict( [("edge", edge_id)] + sorted(annotations.items()) )
+                              ]})
+
+  def to_file(self, file_path):
+    with open(file_path) as f:
+      f.write( json.dumps( self, cls=TEAJSONEncoder, indent=2 ) )
+
+  def to_stream(self, stream):
+    stream.write( json.dumps( self, cls=TEAJSONEncoder, indent=2 ) )
+
+class TEAJSONEncoder(json.JSONEncoder):
+  def default(self, o):
+    if isinstance(o, TEA):
+      return OrderedDict([
+        ("tree", o._tree),
+        ("samples", o._samples),
+        ("meta", o._meta),
+        ("version", o._version)
+      ])
+    else:
+      return super(TEAJSONEncoder, self).default(o)
