@@ -20,7 +20,8 @@ basedir = os.path.abspath( os.path.realpath( os.path.join(
 prog_paths = {
     "alignment_splitter" : [basedir + "/genesis/bin/apps/"],
     "get_all_rootings"     : [basedir + "/genesis/bin/apps/"],
-    "mptp"               : [basedir + "/mptp/bin/",         ],
+    "mptp"               : [basedir + "/mptp/bin/"],
+    "pargenes"           : [basedir + "/ParGenes/is_installed_"],
     "raxml-ng"           : [basedir + "/raxml-ng/bin/",
                             "https://github.com/amkozlov/raxml-ng/releases/download/0.4.1/raxml-ng_v0.4.1b"
                             ]
@@ -137,6 +138,14 @@ def try_resolve_alignment_splitter(machine = get_platform()):
     # make update on genesis
     return sub.call(["make", "-C", genesisdir], stdout=FNULL)
 
+def try_resolve_pargenes(machine = get_platform()):
+  pargenesdir = os.path.join(basedir, "ParGenes")
+  print(pargenesdir)
+  res = sub.call(['./install.sh'], cwd=pargenesdir, shell=True)
+  if (0 == res):
+    sub.call(['touch', os.path.join(pargenesdir, "is_installed_pargenes")])
+  return res
+
 def try_resolve_get_all_rootings(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
     # ensure the symlink exists
@@ -155,6 +164,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_alignment_splitter( machine )
     elif name == "get_all_rootings":
         return try_resolve_get_all_rootings( machine )
+    elif name == "pargenes":
+        return try_resolve_pargenes( machine )
     else:
         raise RuntimeError( "No such subprogram name: " + name )
 

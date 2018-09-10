@@ -10,3 +10,6 @@
 [submodule "deps/genesis"]
 	path = deps/genesis
 	url = https://github.com/lczech/genesis.git
+[submodule "deps/ParGenes"]
+	path = deps/ParGenes
+	url = git@github.com:BenoitMorel/ParGenes.git
