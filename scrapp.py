@@ -65,14 +65,14 @@ def command_line_args_parser():
     #     choices=[ "threads", "mpi" ],
     #     default="threads"
     # )
-    parser.add_argument(
-        '-o', '--output',
-        help="Output file path for the Newick file containg species counts per branch.",
-        action='store',
-        dest='output_file',
-        type=str,
-        default=None
-    )
+    # parser.add_argument(
+    #     '-o', '--out-dir',
+    #     help="Output directory.",
+    #     action='store',
+    #     dest='out_dir',
+    #     type=str,
+    #     default=base_dir_
+    # )
     parser.add_argument(
         '-w', '--work-dir',
         help="Directory path for intermediate work files.",
@@ -404,7 +404,7 @@ if __name__ == "__main__":
                 paths[ "mptp" ],
                 "--tree_file", tree,
                 "--ml", "--multi",
-                "--output_file",  os.path.join( mptp_out_dir, "mptp_result.txt" )
+                "--output_file",  os.path.join( mptp_out_dir, "mptp_result" )
             ]
 
             # do a delimitation per possible rooting
@@ -430,9 +430,34 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     #     Summarize Delimitation Results
     # -------------------------------------------------------------------------
+    if is_master():
+        import scripts.mptp as mptp
+        import scripts.tea as tea
 
+        output = tea.TEA()
 
+        # for all reference edges (that have results)s
+        for d in edge_list:
+            d = os.path.join(args.work_dir, d, "delimit")
+
+            # for all possible runs/rootings of the delimitation
+            file_paths = glob.glob( os.path.join(d, "edge_*/mptp_result.txt" ) )
+            res = []
+            for path in file_paths:
+                # parse the results
+                res.append( mptp.parse(path) )
+            # summarize them
+            summary = mptp.summarize( res )
+
+            # add the summary to the overall result structure
+            ref_edge_id = d.split("/")[-3].split("_")[-1]
+            output.add_annotation("species-count", ref_edge_id, summary)
+
+        if args.verbose:
+            output.to_stream(sys.stdout)
+        output.to_file( os.path.join( args.work_dir, "summary.tea" ) )
 
     if is_master():
         print "Finished!"
-        pp.pprint( runtimes )
+        if args.verbose:
+            pp.pprint( runtimes )
