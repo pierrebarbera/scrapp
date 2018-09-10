@@ -18,12 +18,32 @@ else:
 class TEA:
   """Class holding Tree Edge Anntations. Ensures adherence to the related file format specifications"""
 
+  # ==========================================
+  # Member Variables
+  # ==========================================
+
   _version = "0.0.1"
   _meta = {"invocation":""}
 
   _tree = "" #TODO internally as an actual tree? convert on write?
   _samples = []
 
+  # ==========================================
+  # Constructor
+  # ==========================================
+  def __init__(self, tree=None, invocation=None, version=None):
+    if tree != None:
+      self._tree = tree
+
+    if invocation != None:
+      self._meta["invocation"] = invocation
+
+    if version != None:
+      self._version = version
+
+  # ==========================================
+  # Getter/Setter
+  # ==========================================
   def invocation(self, invocation_string):
     self._meta["invocation"] = invocation_string
 
@@ -46,6 +66,10 @@ class TEA:
   #   # find sample with specified name
 
   #   # return it
+
+  # ==========================================
+  # Modifiers
+  # ==========================================
 
   def add_annotation(self, sample_name, edge_id, annotations):
     """ adds an arbitrary number of key-value pairs ("annotations")
@@ -77,8 +101,12 @@ class TEA:
                                 OrderedDict( [("edge", edge_id)] + sorted(annotations.items()) )
                               ]})
 
+  # ==========================================
+  # Output
+  # ==========================================
+
   def to_file(self, file_path):
-    with open(file_path) as f:
+    with open(file_path, "w+") as f:
       f.write( json.dumps( self, cls=TEAJSONEncoder, indent=2 ) )
 
   def to_stream(self, stream):
