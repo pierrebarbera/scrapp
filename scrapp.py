@@ -111,13 +111,13 @@ def command_line_args_postprocessor( args ):
 
     # If the user did not specify an output file, use the name of the Jplace file, appending
     # or replacing the the file extension to Newick.
-    if args.output_file is None:
-        # Get file name and extension and append/replace depending on the extension.
-        jfn, jfe = os.path.splitext( args.jplace_file )
-        if jfe == ".jplace":
-            args.output_file = jfn + ".newick"
-        else:
-            args.output_file = args.jplace_file + ".newick"
+    # if args.output_file is None:
+    #     # Get file name and extension and append/replace depending on the extension.
+    #     jfn, jfe = os.path.splitext( args.jplace_file )
+    #     if jfe == ".jplace":
+    #         args.output_file = jfn + ".newick"
+    #     else:
+    #         args.output_file = args.jplace_file + ".newick"
 
     # If user did not provide number of threads, use all available ones.
     if args.num_threads == 0:
@@ -135,7 +135,7 @@ def command_line_args_postprocessor( args ):
     # Make sure that all paths are fully resolved and dirs have no trailing slashes.
     args.jplace_file = os.path.abspath( os.path.realpath( args.jplace_file ))
     args.aln_file    = os.path.abspath( os.path.realpath( args.aln_file ))
-    args.output_file = os.path.abspath( os.path.realpath( args.output_file ))
+    # args.output_file = os.path.abspath( os.path.realpath( args.output_file ))
     args.work_dir    = os.path.abspath( os.path.realpath( args.work_dir ))
 
     return args
