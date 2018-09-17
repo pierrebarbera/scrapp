@@ -13,7 +13,6 @@ base_dir_ = os.path.dirname( os.path.realpath(__file__) )
 
 execfile( os.path.join( base_dir_, "deps/parallel_decorators/parallel_decorators.py" ) )
 
-
 # ==================================================================================================
 #     Command Line Args
 # ==================================================================================================
@@ -218,6 +217,10 @@ def call_with_check_file(
             check_file_handle.write( cmd_string )
         return success
 
+def mkdirp( path ):
+    if not os.path.exists( path ):
+        os.mkdir( path )
+
 # ==================================================================================================
 #     Main Function
 # ==================================================================================================
@@ -303,6 +306,10 @@ if __name__ == "__main__":
     # edge_list = [edge_list[0]]
 
     # -------------------------------------------------------------------------
+    #     OTU Clustering of queries
+    # -------------------------------------------------------------------------
+
+    # -------------------------------------------------------------------------
     #     RAxML Tree Inferrence
     # -------------------------------------------------------------------------
 
@@ -310,44 +317,63 @@ if __name__ == "__main__":
     # each of them running one RAxML instance with as many threads as specified in the CLI,
     # or, if we are not using MPI, run the parallel loop single threaded,
     # but use the threads again internally for the RAxML instance.
-    @vectorize_parallel( method = 'adaptive', num_procs = 1 )
-    def run_raxml_processes( edge_dir, work_dir ):
-        raxml_out_dir = os.path.join( args.work_dir, edge_dir, "search")
-        raxml_chk_file = os.path.join( raxml_out_dir, "raxml_cmd.txt" )
-        raxml_out_file = os.path.join( raxml_out_dir, "raxml_log.txt" )
 
-        raxml_cmd = [
-            paths[ "raxml-ng" ], "--search",
-            "--msa", os.path.join( args.work_dir, edge_dir, "aln.phylip" ),
-            "--threads", str(args.num_threads),
-            "--prefix", raxml_out_dir + "/s",
-            "--model", "GTR+G", "--force"
+
+    if is_master():
+
+        # prepare for pargenes by copying, renaming msa files, into a temp dir
+        import shutil
+        tmp_dir = os.path.join( args.work_dir, "tmp" )
+        mkdirp( tmp_dir )
+        for edge_dir in edge_list:
+            msa = os.path.join( args.work_dir, edge_dir, "aln.phylip" )
+            edge_string = edge_dir.split("/")[-2]
+            # shutil.copyfile(msa, os.path.join(tmp_dir, edge_string + ".phy"))
+            # convert to fasta and save in tmp folder
+
+            subprocess.call( [ paths["phy2fasta"], msa, os.path.join(tmp_dir, edge_string + ".fasta")] )
+
+
+        # call pargenes
+        pargenes_chk_file = os.path.join( args.work_dir, "pargenes_cmd.txt" )
+        pargenes_out_file = os.path.join( args.work_dir, "pargenes_log.txt" )
+
+        pargenes = os.path.join(base_dir_, "deps/ParGenes/pargenes/pargenes.py")
+
+        tmp_out_dir = os.path.join( args.work_dir, "tmp_out" )
+        # os.mkdir(tmp_out_dir)
+
+        pargenes_cmd = ["python", pargenes,
+            "--alignments-dir", tmp_dir,
+            "--output-dir", tmp_out_dir,
+            "--datatype", "nt",
+            "--cores", str(args.num_threads),
+            "--scheduler", "openmp",
+            "--continue",
+            "--raxml-global-parameters-string", "GTR+G"
         ]
 
+        runtime = time.time()
         if ( not call_with_check_file(
-            raxml_cmd,
-            raxml_chk_file,
-            out_file_path=raxml_out_file,
-            err_file_path=raxml_out_file,
+            pargenes_cmd,
+            pargenes_chk_file,
+            out_file_path=pargenes_out_file,
+            err_file_path=pargenes_out_file,
             verbose=args.verbose
         ) ):
-            raise RuntimeError( "raxml has failed!" )
+            raise RuntimeError( "pargenes has failed!" )
+        runtime = time.time() - runtime
+        runtimes.append({"name":"pargenes", "time":str(runtime)})
 
-
-        print "done", mpi_rank(), succ
-        return succ
-
-    runtime = time.time()
-    run_raxml_processes( edge_list, args.work_dir )
-    runtime = time.time() - runtime
-    runtimes.append({"name":"raxml-ng", "time":str(runtime)})
-
-    # Tests
-    # @vectorize_parallel( method = 'MPI' )
-    # def simple_test( list ):
-    #     print list, mpi_rank()
-    # simple_test( [1,2,3] )
-    # print "whoami", mpi_rank(), mpi_size(), is_master()
+        # copy the results back to their appropriate directories
+        for edge_dir in edge_list:
+            pargenes_out_dir = os.path.join( args.work_dir, edge_dir, "search/" )
+            edge_string = edge_dir.split("/")[-2]
+            res = os.path.join( tmp_out_dir, "mlsearch_run/results", edge_string + "_fasta" )
+            for filename in glob.glob(os.path.join(res, "*.*")):
+                # print "copy ", filename, " to ", pargenes_out_dir
+                mkdirp( pargenes_out_dir )
+                shutil.copy( filename, pargenes_out_dir )
 
     # -------------------------------------------------------------------------
     #     get all possible rootings per tree
@@ -358,9 +384,11 @@ if __name__ == "__main__":
         rootings_chk_file = os.path.join( rootings_out_dir, "rootings_cmd.txt" )
         rootings_out_file = os.path.join( rootings_out_dir, "rootings_log.txt" )
 
+        bestTree = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
+
         rootings_cmd = [
             paths[ "get_all_rootings" ],
-            os.path.join( args.work_dir, edge_dir, "search", "s.raxml.bestTree" ),
+            bestTree[0],
             rootings_out_dir
         ]
 
@@ -372,7 +400,6 @@ if __name__ == "__main__":
             verbose=args.verbose
         ) ):
             raise RuntimeError( "get_all_rootings has failed!" )
-
 
         print "done", mpi_rank(), succ
         return succ

@@ -19,7 +19,8 @@ basedir = os.path.abspath( os.path.realpath( os.path.join(
 # in case that raxml-ng or mptp is actually installed on the system already.
 prog_paths = {
     "alignment_splitter" : [basedir + "/genesis/bin/apps/"],
-    "get_all_rootings"     : [basedir + "/genesis/bin/apps/"],
+    "get_all_rootings"   : [basedir + "/genesis/bin/apps/"],
+    "phy2fasta"          : [basedir + "/genesis/bin/apps/"],
     "mptp"               : [basedir + "/mptp/bin/"],
     "pargenes"           : [basedir + "/ParGenes/is_installed_"],
     "raxml-ng"           : [basedir + "/raxml-ng/bin/",
@@ -138,6 +139,14 @@ def try_resolve_alignment_splitter(machine = get_platform()):
     # make update on genesis
     return sub.call(["make", "-C", genesisdir], stdout=FNULL)
 
+def try_resolve_phy2fasta(machine = get_platform()):
+    genesisdir = os.path.join(basedir, "genesis")
+    # ensure the symlink exists
+    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/phy2fasta.cpp"))], stdout=FNULL)
+
+    # make update on genesis
+    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+
 def try_resolve_pargenes(machine = get_platform()):
   pargenesdir = os.path.join(basedir, "ParGenes")
   print(pargenesdir)
@@ -164,6 +173,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_alignment_splitter( machine )
     elif name == "get_all_rootings":
         return try_resolve_get_all_rootings( machine )
+    elif name == "phy2fasta":
+        return try_resolve_phy2fasta( machine )
     elif name == "pargenes":
         return try_resolve_pargenes( machine )
     else:
