@@ -308,6 +308,40 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     #     OTU Clustering of queries
     # -------------------------------------------------------------------------
+    @vectorize_parallel( method = 'adaptive', num_procs = 1 )
+    def run_swarm_processes( edge_dir, work_dir ):
+        swarm_out_dir = os.path.join( args.work_dir, edge_dir, "swarm")
+        swarm_chk_file = os.path.join( swarm_out_dir, "swarm_cmd.txt" )
+        swarm_out_file = os.path.join( swarm_out_dir, "swarm_log.txt" )
+
+        sequences = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
+
+        swarm_cmd = [
+            paths[ "swarm" ],
+            "--threads", "1",
+            "--fastidious",
+            "-w", os.path.join( swarm_out_dir, "otus.fasta"),
+            sequences
+        ]
+
+        if ( not call_with_check_file(
+            swarm_cmd,
+            swarm_chk_file,
+            out_file_path=swarm_out_file,
+            err_file_path=swarm_out_file,
+            verbose=args.verbose
+        ) ):
+            raise RuntimeError( "swarm has failed!" )
+
+        print "done", mpi_rank(), succ
+        return succ
+
+    runtime = time.time()
+    run_swarm_processes( edge_list, args.work_dir )
+    runtime = time.time() - runtime
+    runtimes.append({"name":"swarm", "time":str(runtime)})
+
+    # exit()
 
     # -------------------------------------------------------------------------
     #     RAxML Tree Inferrence
@@ -326,12 +360,12 @@ if __name__ == "__main__":
         tmp_dir = os.path.join( args.work_dir, "tmp" )
         mkdirp( tmp_dir )
         for edge_dir in edge_list:
-            msa = os.path.join( args.work_dir, edge_dir, "aln.phylip" )
+            msa = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
             edge_string = edge_dir.split("/")[-2]
-            # shutil.copyfile(msa, os.path.join(tmp_dir, edge_string + ".phy"))
+            shutil.copyfile(msa, os.path.join(tmp_dir, edge_string + ".fasta"))
             # convert to fasta and save in tmp folder
 
-            subprocess.call( [ paths["phy2fasta"], msa, os.path.join(tmp_dir, edge_string + ".fasta")] )
+            # subprocess.call( [ paths["phy2fasta"], msa, os.path.join(tmp_dir, edge_string + ".fasta")] )
 
 
         # call pargenes

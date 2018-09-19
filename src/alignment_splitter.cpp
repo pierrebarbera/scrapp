@@ -1,6 +1,6 @@
 /*
     Genesis - A toolkit for working with phylogenetic data.
-    Copyright (C) 2014-2017 Lucas Czech
+    Copyright (C) 2014-2018 Lucas Czech, Pierre Barbera
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ int main( int argc, char** argv )
 
     rectify_values( sample );
     if( ! has_correct_edge_nums( sample.tree() )) {
-        LOG_ERR << "";
+        LOG_ERR << "Jplace edge nums were incorrect! Correcting them...";
         reset_edge_nums( sample.tree() );
     }
 
@@ -122,7 +122,12 @@ int main( int argc, char** argv )
         return 1;
     }
 
+    // dereplicate
+    LOG_INFO << "Dereplicating sequences.";
+    merge_duplicate_sequences( seqs );
+
     // Build map from seq label to id in the set.
+    bool alignment_had_adundance = false;
     LOG_INFO << "Processing alignment.";
     auto seq_label_map = std::unordered_map< std::string, size_t >();
     for( size_t i = 0; i < seqs.size(); ++i ) {
@@ -133,7 +138,14 @@ int main( int argc, char** argv )
             LOG_WARN << "Sequence '" << label << "' is not unique.";
         }
 
+        if ( not alignment_had_adundance and seqs[i].abundance() > 1 ) {
+            alignment_had_adundance = true;
+        }
+
         seq_label_map[ label ] = i;
+    }
+    if ( alignment_had_adundance ) {
+        LOG_INFO << "Detected abundance information in the original alignment, ignoring multiplicity count from the pqueries!";
     }
 
     // Fill sequence sets for each edge.
@@ -160,6 +172,14 @@ int main( int argc, char** argv )
 
                 // Add the sequence of the current name to the seq set of this edge.
                 auto seq_id = seq_label_map[ pqry_name.name ];
+
+                // if the abundance info wasnt in the original msa, and the seq hasnt had its abundance adjusted
+                if ( not alignment_had_adundance
+                    and seqs[ seq_id ].abundance() <= 1) {
+                    // update abundance from jplace
+                    seqs[ seq_id ].abundance( pqry_name.multiplicity );
+                }
+
                 edge_seqs[ edge_index ].add( seqs[ seq_id ] );
                 ++finished_labels[ pqry_name.name ];
             }
@@ -179,17 +199,18 @@ int main( int argc, char** argv )
                  << "In case these numbers to match, better check if everything is correct.";
     }
 
-    // Clean up resulting edge alignments: Remove gap sites and duplicate sequences.
-    LOG_INFO << "Cleaning sequences.";
+    LOG_INFO << "De-aligning sequences.";
 
     for( auto& seq_set : edge_seqs) {
-        remove_gap_sites( seq_set );
-        merge_duplicate_sequences( seq_set );
+        // merge_duplicate_sequences( seq_set, MergeDuplicateSequencesCountPolicy::kAppendToLabel );
+        remove_all_gaps( seq_set );
     }
 
     // Write result files.
-    LOG_INFO << "Writing result Phylip files.";
-    auto phylip_writer = PhylipWriter();
+    LOG_INFO << "Writing result files.";
+    auto writer = FastaWriter();
+    // ensure abundance info is written out
+    writer.abundance_notation( FastaWriter::AbundanceNotation::kUnderscore );
     for( size_t edge_index = 0; edge_index < edge_seqs.size(); ++edge_index ) {
 
         // Check: Don't need to write empty sequence files.
@@ -204,8 +225,8 @@ int main( int argc, char** argv )
         dir_create(edge_dir);
 
         // Write to Phylip.
-        std::string output_file = edge_dir + "aln.phylip";
-        phylip_writer.to_file( edge_seqs[ edge_index ], output_file );
+        std::string output_file = edge_dir + "aln.fasta";
+        writer.to_file( edge_seqs[ edge_index ], output_file );
     }
 
     LOG_INFO << "Finished";

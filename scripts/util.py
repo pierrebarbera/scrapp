@@ -22,6 +22,7 @@ prog_paths = {
     "get_all_rootings"   : [basedir + "/genesis/bin/apps/"],
     "phy2fasta"          : [basedir + "/genesis/bin/apps/"],
     "mptp"               : [basedir + "/mptp/bin/"],
+    "swarm"              : [basedir + "/swarm/bin/"],
     "pargenes"           : [basedir + "/ParGenes/is_installed_"],
     "raxml-ng"           : [basedir + "/raxml-ng/bin/",
                             "https://github.com/amkozlov/raxml-ng/releases/download/0.4.1/raxml-ng_v0.4.1b"
