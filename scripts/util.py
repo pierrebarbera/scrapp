@@ -21,6 +21,7 @@ prog_paths = {
     "alignment_splitter" : [basedir + "/genesis/bin/apps/"],
     "get_all_rootings"   : [basedir + "/genesis/bin/apps/"],
     "phy2fasta"          : [basedir + "/genesis/bin/apps/"],
+    "otu_map_back"       : [basedir + "/genesis/bin/apps/"],
     "mptp"               : [basedir + "/mptp/bin/"],
     "swarm"              : [basedir + "/swarm/bin/"],
     "pargenes"           : [basedir + "/ParGenes/is_installed_"],
@@ -148,6 +149,14 @@ def try_resolve_phy2fasta(machine = get_platform()):
     # make update on genesis
     return sub.call(["make", "-C", genesisdir], stdout=FNULL)
 
+def try_resolve_otu_map_back(machine = get_platform()):
+    genesisdir = os.path.join(basedir, "genesis")
+    # ensure the symlink exists
+    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/otu_map_back.cpp"))], stdout=FNULL)
+
+    # make update on genesis
+    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+
 def try_resolve_pargenes(machine = get_platform()):
   pargenesdir = os.path.join(basedir, "ParGenes")
   print(pargenesdir)
@@ -176,6 +185,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_get_all_rootings( machine )
     elif name == "phy2fasta":
         return try_resolve_phy2fasta( machine )
+    elif name == "otu_map_back":
+        return try_resolve_otu_map_back( machine )
     elif name == "pargenes":
         return try_resolve_pargenes( machine )
     else:

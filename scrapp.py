@@ -315,13 +315,16 @@ if __name__ == "__main__":
         swarm_out_file = os.path.join( swarm_out_dir, "swarm_log.txt" )
 
         sequences = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
+        stripped_sequences = os.path.join( args.work_dir, edge_dir, "stripped.fasta" )
+
+        otu_path = os.path.join( swarm_out_dir, "otus.fasta")
 
         swarm_cmd = [
             paths[ "swarm" ],
             "--threads", "1",
             "--fastidious",
-            "-w", os.path.join( swarm_out_dir, "otus.fasta"),
-            sequences
+            "-w", otu_path,
+            stripped_sequences
         ]
 
         if ( not call_with_check_file(
@@ -332,6 +335,29 @@ if __name__ == "__main__":
             verbose=args.verbose
         ) ):
             raise RuntimeError( "swarm has failed!" )
+
+        # --------------------------------------------------
+        #   transform the result otus back to aligned ones
+        # --------------------------------------------------
+        map_back_out_dir = swarm_out_dir
+        map_back_chk_file = os.path.join( map_back_out_dir, "map_back_cmd.txt" )
+        map_back_out_file = os.path.join( map_back_out_dir, "map_back_log.txt" )
+
+        map_back_cmd = [
+            paths[ "otu_map_back" ],
+            otu_path,
+            sequences,
+            os.path.join( map_back_out_dir, "aligned_otus.fasta")
+        ]
+
+        if ( not call_with_check_file(
+            map_back_cmd,
+            map_back_chk_file,
+            out_file_path=map_back_out_file,
+            err_file_path=map_back_out_file,
+            verbose=args.verbose
+        ) ):
+            raise RuntimeError( "map_back has failed!" )
 
         print "done", mpi_rank(), succ
         return succ
@@ -478,7 +504,6 @@ if __name__ == "__main__":
                 verbose=False
             ) ):
                 raise RuntimeError( "mptp has failed!" )
-
 
         print "done", mpi_rank(), succ
         return succ
