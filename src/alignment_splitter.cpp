@@ -47,9 +47,9 @@ int main( int argc, char** argv )
     LOG_INFO << "Started";
 
     // Check if the command line contains the right number of arguments.
-    if( argc < 4 or argc > 6 ) {
+    if( argc < 4 or argc > 7 ) {
         LOG_INFO << "Usage: " << argv[0] << " <jplace_file> <alignment_file> <output_dir> "
-                 << "<min_weight> <min_num>";
+                 << "<min_weight> <min_num> <max_num>";
         return 1;
     }
 
@@ -61,11 +61,17 @@ int main( int argc, char** argv )
     // If the argument is given, parse the min weight threshold.
     double min_weight = 0.51;
     size_t min_num = 4;
+    size_t max_num = 500;
     if( argc >= 5 ) {
         min_weight = std::atof( argv[4] );
     }
-    if( argc == 6 ) {
+    // and the minimum number
+    if( argc >= 6 ) {
         min_num = std::atoi( argv[5] );
+    }
+    // and the maximum number: if above this, do otu clustering
+    if( argc >= 7 ) {
+        max_num = std::atoi( argv[6] );
     }
 
     LOG_INFO << "Specified: min_weight\t= " << min_weight;
@@ -199,13 +205,6 @@ int main( int argc, char** argv )
                  << "In case these numbers to match, better check if everything is correct.";
     }
 
-    LOG_INFO << "De-aligning sequences.";
-
-    // for( auto& seq_set : edge_seqs) {
-    //     // merge_duplicate_sequences( seq_set, MergeDuplicateSequencesCountPolicy::kAppendToLabel );
-    //     remove_all_gaps( seq_set );
-    // }
-
     // Write result files.
     LOG_INFO << "Writing result files.";
     auto writer = FastaWriter();
@@ -227,8 +226,11 @@ int main( int argc, char** argv )
         // Write result
         writer.to_file( edge_seqs[ edge_index ], edge_dir + "aln.fasta" );
 
-        remove_all_gaps( edge_seqs[ edge_index ] );
-        writer.to_file( edge_seqs[ edge_index ], edge_dir + "stripped.fasta" );
+        if( edge_seqs[ edge_index ].size() > max_num ) {
+            LOG_INFO << "\t\tExceeded max number of sequences, writing stripped file to signal clustering";
+            remove_all_gaps( edge_seqs[ edge_index ] );
+            writer.to_file( edge_seqs[ edge_index ], edge_dir + "stripped.fasta" );
+        }
     }
 
     LOG_INFO << "Finished";

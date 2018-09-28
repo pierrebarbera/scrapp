@@ -57,6 +57,23 @@ def command_line_args_parser():
         type=int,
         default=0
     )
+
+    parser.add_argument(
+        '--min-queries',
+        help="If an edge contains a number of unique queries below this value, ignore the edge.",
+        action='store',
+        dest='min_query',
+        type=int,
+        default=4
+    )
+    parser.add_argument(
+        '-c', '--cluster-above',
+        help="If an edge contains a number of unique queries above this value, apply OTU clustering.",
+        action='store',
+        dest='max_query',
+        type=int,
+        default=500
+    )
     # parser.add_argument(
     #     '-p', '--parallelization',
     #     help="Parallelization strategy to use. Either 'threads' or 'mpi'.",
@@ -270,7 +287,9 @@ if __name__ == "__main__":
             args.jplace_file,
             args.aln_file,
             args.work_dir,
-            str(args.min_weight)
+            str(args.min_weight),
+            str(args.min_query),
+            str(args.max_query)
         ]
         runtime = time.time()
         succ = call_with_check_file(
@@ -317,6 +336,10 @@ if __name__ == "__main__":
         sequences = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
         stripped_sequences = os.path.join( args.work_dir, edge_dir, "stripped.fasta" )
 
+        # only proceed if stripped.fasta exists
+        if (not os.path.isfile(stripped_sequences)):
+            return 0
+
         otu_path = os.path.join( swarm_out_dir, "otus.fasta")
 
         swarm_cmd = [
@@ -347,7 +370,7 @@ if __name__ == "__main__":
             paths[ "otu_map_back" ],
             otu_path,
             sequences,
-            os.path.join( map_back_out_dir, "aligned_otus.fasta")
+            os.path.join( args.work_dir, edge_dir, "aligned_otus.fasta")
         ]
 
         if ( not call_with_check_file(
@@ -359,8 +382,8 @@ if __name__ == "__main__":
         ) ):
             raise RuntimeError( "map_back has failed!" )
 
-        print "done", mpi_rank(), succ
-        return succ
+        print "done", mpi_rank(), 0
+        return 0
 
     runtime = time.time()
     run_swarm_processes( edge_list, args.work_dir )
@@ -386,13 +409,13 @@ if __name__ == "__main__":
         tmp_dir = os.path.join( args.work_dir, "tmp" )
         mkdirp( tmp_dir )
         for edge_dir in edge_list:
-            msa = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
+            msa = os.path.join( args.work_dir, edge_dir, "aligned_otus.fasta" )
+            if (not os.path.isfile( msa )):
+                if (os.path.isfile( os.path.join(args.work_dir, edge_dir, "stripped.fasta") )):
+                    raise RuntimeError( "stripped.fasta exists, but there is no otu file, something must have gone wrong!" )
+                msa = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
             edge_string = edge_dir.split("/")[-2]
             shutil.copyfile(msa, os.path.join(tmp_dir, edge_string + ".fasta"))
-            # convert to fasta and save in tmp folder
-
-            # subprocess.call( [ paths["phy2fasta"], msa, os.path.join(tmp_dir, edge_string + ".fasta")] )
-
 
         # call pargenes
         pargenes_chk_file = os.path.join( args.work_dir, "pargenes_cmd.txt" )
@@ -410,7 +433,7 @@ if __name__ == "__main__":
             "--cores", str(args.num_threads),
             "--scheduler", "openmp",
             "--continue",
-            "--raxml-global-parameters-string", "GTR+G"
+            "--raxml-global-parameters-string", "--model GTR+G"
         ]
 
         runtime = time.time()
@@ -461,8 +484,8 @@ if __name__ == "__main__":
         ) ):
             raise RuntimeError( "get_all_rootings has failed!" )
 
-        print "done", mpi_rank(), succ
-        return succ
+        print "done", mpi_rank(), 0
+        return 0
 
     runtime = time.time()
     run_rootings_processes( edge_list, args.work_dir )
@@ -505,8 +528,8 @@ if __name__ == "__main__":
             ) ):
                 raise RuntimeError( "mptp has failed!" )
 
-        print "done", mpi_rank(), succ
-        return succ
+        print "done", mpi_rank(), 0
+        return 0
 
     runtime = time.time()
     run_mptp_processes( edge_list, args.work_dir )
