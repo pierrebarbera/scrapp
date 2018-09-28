@@ -201,10 +201,10 @@ int main( int argc, char** argv )
 
     LOG_INFO << "De-aligning sequences.";
 
-    for( auto& seq_set : edge_seqs) {
-        // merge_duplicate_sequences( seq_set, MergeDuplicateSequencesCountPolicy::kAppendToLabel );
-        remove_all_gaps( seq_set );
-    }
+    // for( auto& seq_set : edge_seqs) {
+    //     // merge_duplicate_sequences( seq_set, MergeDuplicateSequencesCountPolicy::kAppendToLabel );
+    //     remove_all_gaps( seq_set );
+    // }
 
     // Write result files.
     LOG_INFO << "Writing result files.";
@@ -224,9 +224,11 @@ int main( int argc, char** argv )
         auto edge_dir = output_dir + "edge_" + std::to_string( edge_index ) + "/";
         dir_create(edge_dir);
 
-        // Write to Phylip.
-        std::string output_file = edge_dir + "aln.fasta";
-        writer.to_file( edge_seqs[ edge_index ], output_file );
+        // Write result
+        writer.to_file( edge_seqs[ edge_index ], edge_dir + "aln.fasta" );
+
+        remove_all_gaps( edge_seqs[ edge_index ] );
+        writer.to_file( edge_seqs[ edge_index ], edge_dir + "stripped.fasta" );
     }
 
     LOG_INFO << "Finished";
