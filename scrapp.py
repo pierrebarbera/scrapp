@@ -57,6 +57,12 @@ def command_line_args_parser():
         type=int,
         default=0
     )
+    parser.add_argument(
+        '--aa',
+        help="Data is amino acid sequences.",
+        action='store_true',
+        dest='protein',
+    )
 
     parser.add_argument(
         '--min-queries',
@@ -426,14 +432,21 @@ if __name__ == "__main__":
         tmp_out_dir = os.path.join( args.work_dir, "tmp_out" )
         # os.mkdir(tmp_out_dir)
 
+        if (args.protein):
+            datatype = 'aa'
+            model = "PROTGTR+G"
+        else:
+            datatype = 'nt'
+            model = "GTR+G"
+
         pargenes_cmd = ["python", pargenes,
             "--alignments-dir", tmp_dir,
             "--output-dir", tmp_out_dir,
-            "--datatype", "nt",
+            "--datatype", datatype,
             "--cores", str(args.num_threads),
             "--scheduler", "openmp",
             "--continue",
-            "--raxml-global-parameters-string", "--model GTR+G"
+            "--raxml-global-parameters-string", "--model", model
         ]
 
         runtime = time.time()
