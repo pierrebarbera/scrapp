@@ -306,7 +306,7 @@ if __name__ == "__main__":
             verbose=args.verbose
         )
         runtime = time.time() - runtime
-        runtimes.append({"name":"alignment_splitter", "time":str(runtime)})
+        runtimes.append({"name":"alignment_splitter", "time":runtime})
 
         # We only continue with the script if the alignment splitting was successfull.
         if not succ:
@@ -319,16 +319,16 @@ if __name__ == "__main__":
 
         # User output
         print "Processing", len(edge_list), "edges."
-        if args.verbose:
-            for edge in edge_list:
-                print "  - " + edge
+        # if args.verbose:
+        #     for edge in edge_list:
+        #         print "  - " + edge
 
     else:
         # For non-master ranks, we create a dummy list, which is passed to the parallel function.
         # This is then internally overriden by a broadcast of the actual list of the master rank.
         edge_list = []
 
-    # edge_list = [edge_list[0]]
+    # edge_list = [edge_list[0], edge_list[1]]
 
     # -------------------------------------------------------------------------
     #     OTU Clustering of queries
@@ -388,13 +388,12 @@ if __name__ == "__main__":
         ) ):
             raise RuntimeError( "map_back has failed!" )
 
-        print "done", mpi_rank(), 0
         return 0
 
     runtime = time.time()
     run_swarm_processes( edge_list, args.work_dir )
     runtime = time.time() - runtime
-    runtimes.append({"name":"swarm", "time":str(runtime)})
+    runtimes.append({"name":"swarm", "time":runtime})
 
     # exit()
 
@@ -430,7 +429,7 @@ if __name__ == "__main__":
         pargenes = os.path.join(base_dir_, "deps/ParGenes/pargenes/pargenes.py")
 
         tmp_out_dir = os.path.join( args.work_dir, "tmp_out" )
-        # os.mkdir(tmp_out_dir)
+        os.mkdir(tmp_out_dir)
 
         if (args.protein):
             datatype = 'aa'
@@ -439,6 +438,11 @@ if __name__ == "__main__":
             datatype = 'nt'
             model = "GTR+G"
 
+        model_path = os.path.join(tmp_out_dir, "raxml.model" )
+
+        with open( model_path, "w+") as f:
+            f.write("--model {}".format(model))
+
         pargenes_cmd = ["python", pargenes,
             "--alignments-dir", tmp_dir,
             "--output-dir", tmp_out_dir,
@@ -446,7 +450,7 @@ if __name__ == "__main__":
             "--cores", str(args.num_threads),
             "--scheduler", "openmp",
             "--continue",
-            "--raxml-global-parameters-string", "--model", model
+            "--raxml-global-parameters", model_path
         ]
 
         runtime = time.time()
@@ -459,7 +463,7 @@ if __name__ == "__main__":
         ) ):
             raise RuntimeError( "pargenes has failed!" )
         runtime = time.time() - runtime
-        runtimes.append({"name":"pargenes", "time":str(runtime)})
+        runtimes.append({"name":"pargenes", "time":runtime})
 
         # copy the results back to their appropriate directories
         for edge_dir in edge_list:
@@ -497,13 +501,12 @@ if __name__ == "__main__":
         ) ):
             raise RuntimeError( "get_all_rootings has failed!" )
 
-        print "done", mpi_rank(), 0
         return 0
 
     runtime = time.time()
     run_rootings_processes( edge_list, args.work_dir )
     runtime = time.time() - runtime
-    runtimes.append({"name":"get_all_rootings", "time":str(runtime)})
+    runtimes.append({"name":"get_all_rootings", "time":runtime})
 
     # -------------------------------------------------------------------------
     #     Species Delimitation
@@ -541,13 +544,12 @@ if __name__ == "__main__":
             ) ):
                 raise RuntimeError( "mptp has failed!" )
 
-        print "done", mpi_rank(), 0
         return 0
 
     runtime = time.time()
     run_mptp_processes( edge_list, args.work_dir )
     runtime = time.time() - runtime
-    runtimes.append({"name":"mptp", "time":str(runtime)})
+    runtimes.append({"name":"mptp", "time":runtime})
 
     # -------------------------------------------------------------------------
     #     Summarize Delimitation Results
@@ -572,7 +574,7 @@ if __name__ == "__main__":
             summary = mptp.summarize( res )
 
             # add the summary to the overall result structure
-            ref_edge_id = d.split("/")[-3].split("_")[-1]
+            ref_edge_id = d.split("/")[-2].split("_")[-1]
             output.add_annotation("species-count", ref_edge_id, summary)
 
         if args.verbose:
