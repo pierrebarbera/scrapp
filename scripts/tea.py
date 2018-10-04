@@ -87,7 +87,7 @@ class TEA:
         for a in s["annotation"]:
           if a["edge"] == edge_id:
             edge_found = True
-            a.append( annotations )
+            a.update( annotations )
         if not edge_found:
           # annotations["edge"] = edge_id
           s["annotation"].append(
