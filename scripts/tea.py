@@ -44,22 +44,22 @@ class TEA:
   # ==========================================
   # Getter/Setter
   # ==========================================
-  def invocation(self, invocation_string):
+  def set_invocation(self, invocation_string):
     self._meta["invocation"] = invocation_string
 
-  def invocation(self):
+  def get_invocation(self):
     return self._meta["invocation"]
 
-  def version(self, version_string):
+  def set_version(self, version_string):
     self._version = version_string
 
-  def version(self):
+  def get_version(self):
     return self._version
 
-  def tree(self, tree_string):
+  def set_tree(self, tree_string):
     self._tree = tree_string
 
-  def tree(self):
+  def get_tree(self):
     return self._tree
 
   # def sample(self, name):

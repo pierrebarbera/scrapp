@@ -244,6 +244,13 @@ def mkdirp( path ):
     if not os.path.exists( path ):
         os.mkdir( path )
 
+def get_treestring( jplace_path ):
+    cmd = ["awk", "-F", "\"", '''{if($2=="tree"){printf "%s", $4;}}''', jplace_path ]
+    print "Tree-getting commandline is %s" % subprocess.list2cmdline(cmd)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    out, err = p.communicate()
+    return out
+
 # ==================================================================================================
 #     Main Function
 # ==================================================================================================
@@ -394,8 +401,6 @@ if __name__ == "__main__":
     run_swarm_processes( edge_list, args.work_dir )
     runtime = time.time() - runtime
     runtimes.append({"name":"swarm", "time":runtime})
-
-    # exit()
 
     # -------------------------------------------------------------------------
     #     RAxML Tree Inferrence
@@ -559,6 +564,8 @@ if __name__ == "__main__":
         import scripts.tea as tea
 
         output = tea.TEA()
+
+        output.tree( get_treestring( "test/data/neotrop/place/epa_result.jplace" ) )
 
         # for all reference edges (that have results)s
         for d in edge_list:
