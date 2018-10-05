@@ -2,6 +2,7 @@ from os import path
 import json
 import StringIO as sio
 from collections import OrderedDict
+import re
 
 try:
     import textwrap
@@ -78,14 +79,16 @@ class TEA:
     """
 
     # look up sample, make one if it's not there
-    sample_found = False
+    found_sample = False
+    edge_id = int(edge_id)
 
     for s in self._samples:
       if s["name"] == sample_name:
-        sample_found = True
+        found_sample = True
         edge_found = False
         for a in s["annotation"]:
           if a["edge"] == edge_id:
+            # TODO: reconsider: should we fail here?
             edge_found = True
             a.update( annotations )
         if not edge_found:
@@ -94,12 +97,51 @@ class TEA:
             OrderedDict( [("edge", edge_id)] + sorted(annotations.items()) )
           )
 
-    if not sample_found:
+    if not found_sample:
       annotations["edge"] = edge_id
       self._samples.append( { "name": sample_name,
                               "annotation": [
                                 OrderedDict( [("edge", edge_id)] + sorted(annotations.items()) )
                               ]})
+
+  def annotated_tree( self, sample_name, annotation_key ):
+    """ returns an edge-annotated tree, according to the specified annotation_key
+    """
+
+    # first build a table of annotations that is more easily accessible
+    annotation_lookup = dict()
+    found_sample = False
+
+    for sample in self._samples:
+      if sample["name"] == sample_name:
+        found_sample = True
+        for annotation in sample["annotation"]:
+          if "edge" in annotation:
+            edge_id = annotation["edge"]
+          else:
+            raise RuntimeError( "malformed annotation, no 'edge' key!" )
+
+          if annotation_key in annotation:
+            annotation_lookup[ edge_id ] = annotation[ annotation_key ]
+          else:
+            raise RuntimeError( "Annotation key '{}' not found!".format(annotation_key) )
+
+    if not found_sample:
+      raise RuntimeError( "Sample with name '{}' not found!".format(sample_name) )
+
+    # now parse over the tree string, subsituting {<edge_id>}
+    # with [<annotation>] where edge_id has an annotation (erase otherwise)
+    tree_array = re.split("[{}]+", self._tree)
+    for i in range(1, len(tree_array), 2):
+      edge_id = int(tree_array[i])
+      if edge_id in annotation_lookup:
+        # replace with annotation
+        tree_array[i] = "[{}]".format( annotation_lookup[ edge_id ] )
+      else:
+        # erase
+        tree_array[i] = ""
+
+    return "".join( tree_array )
 
   # ==========================================
   # Output

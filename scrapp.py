@@ -335,7 +335,7 @@ if __name__ == "__main__":
         # This is then internally overriden by a broadcast of the actual list of the master rank.
         edge_list = []
 
-    # edge_list = [edge_list[0], edge_list[1]]
+    # edge_list = edge_list[:5]
 
     # -------------------------------------------------------------------------
     #     OTU Clustering of queries
@@ -565,7 +565,7 @@ if __name__ == "__main__":
 
         output = tea.TEA()
 
-        output.tree( get_treestring( "test/data/neotrop/place/epa_result.jplace" ) )
+        output.set_tree( get_treestring( args.jplace_file ) )
 
         # for all reference edges (that have results)s
         for d in edge_list:
@@ -587,6 +587,8 @@ if __name__ == "__main__":
         if args.verbose:
             output.to_stream(sys.stdout)
         output.to_file( os.path.join( args.work_dir, "summary.tea" ) )
+        with open(os.path.join( args.work_dir, "summary.newick" ), "w+") as f:
+            f.write( output.annotated_tree("species-count", "count_median") )
 
     if is_master():
         print "Finished!"
