@@ -80,6 +80,14 @@ def command_line_args_parser():
         type=int,
         default=500
     )
+
+    parser.add_argument(
+        '--test',
+        help="Test the pipeline with the first x edges.",
+        action='store',
+        dest='test_size',
+        type=int,
+    )
     # parser.add_argument(
     #     '-p', '--parallelization',
     #     help="Parallelization strategy to use. Either 'threads' or 'mpi'.",
@@ -335,7 +343,8 @@ if __name__ == "__main__":
         # This is then internally overriden by a broadcast of the actual list of the master rank.
         edge_list = []
 
-    # edge_list = edge_list[:5]
+    if args.test_size:
+        edge_list = edge_list[:args.test_size]
 
     # -------------------------------------------------------------------------
     #     OTU Clustering of queries
