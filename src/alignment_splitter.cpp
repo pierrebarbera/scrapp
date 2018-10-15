@@ -34,6 +34,30 @@ using namespace genesis::sequence;
 using namespace genesis::tree;
 using namespace genesis::utils;
 
+void merge_duplicates(
+    SequenceSet& set
+) {
+    // Find duplicates, remove them and update the abundance counts of the originals
+    std::unordered_map< std::string, size_t > dup_map;
+    size_t i = 0;
+    while( i < set.size() ) {
+        auto& seq = set[i].sites();
+
+        if( dup_map.count( seq ) == 0 ) {
+
+            // If it is a new sequence, init the map entry and move to the next sequence.
+            dup_map[ seq ] = i;
+            ++i;
+
+        } else {
+            auto& original_seq = set[ dup_map[ seq ] ];
+            original_seq.abundance( original_seq.abundance() + 1 );
+            set.remove( i );
+            // no need to iterate as we have effectively moved
+        }
+    }
+}
+
 // =================================================================================================
 //     Main
 // =================================================================================================
@@ -130,7 +154,7 @@ int main( int argc, char** argv )
 
     // dereplicate
     LOG_INFO << "Dereplicating sequences.";
-    merge_duplicate_sequences( seqs );
+    merge_duplicates( seqs );
 
     // Build map from seq label to id in the set.
     bool alignment_had_adundance = false;
