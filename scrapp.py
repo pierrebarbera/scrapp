@@ -17,6 +17,8 @@ execfile( os.path.join( base_dir_, "deps/parallel_decorators/parallel_decorators
 #     Command Line Args
 # ==================================================================================================
 
+pardec_method = 'processes'
+
 def command_line_args_parser():
     """
     Return an instance of argparse that can be used to process command line arguemnts.
@@ -88,13 +90,13 @@ def command_line_args_parser():
         dest='test_size',
         type=int,
     )
-    # parser.add_argument(
-    #     '-p', '--parallelization',
-    #     help="Parallelization strategy to use. Either 'threads' or 'mpi'.",
-    #     action='store', dest='parallelization',
-    #     choices=[ "threads", "mpi" ],
-    #     default="threads"
-    # )
+    parser.add_argument(
+        '-p', '--parallel',
+        help="Parallelization strategy to use. Either 'threads' or 'mpi'.",
+        action='store', dest='parallel',
+        choices=[ "threads", "mpi" ],
+        default="threads"
+    )
     # parser.add_argument(
     #     '-o', '--out-dir',
     #     help="Output directory.",
@@ -264,6 +266,9 @@ def get_treestring( jplace_path ):
 # ==================================================================================================
 
 if __name__ == "__main__":
+
+    num_threads = args.num_threads
+
     pp = pprint.PrettyPrinter(indent=4)
     # Get all needed input.
     paths = util.subprogram_commands()
@@ -349,7 +354,7 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     #     OTU Clustering of queries
     # -------------------------------------------------------------------------
-    @vectorize_parallel( method = 'adaptive', num_procs = 1 )
+    @vectorize_parallel( method = pardec_method, num_procs = 1 )
     def run_swarm_processes( edge_dir, work_dir ):
         swarm_out_dir = os.path.join( args.work_dir, edge_dir, "swarm")
         swarm_chk_file = os.path.join( swarm_out_dir, "swarm_cmd.txt" )
@@ -366,7 +371,7 @@ if __name__ == "__main__":
 
         swarm_cmd = [
             paths[ "swarm" ],
-            "--threads", "1",
+            "--threads", str(num_threads),
             "--fastidious",
             "-w", otu_path,
             stripped_sequences
@@ -457,12 +462,18 @@ if __name__ == "__main__":
         with open( model_path, "w+") as f:
             f.write("--model {}".format(model))
 
+
+        if ( args.parallel == "threads" ):
+            parallel = "openmp"
+        elif ( args.parallel == "mpi"):
+            parallel = "split"
+
         pargenes_cmd = ["python", pargenes,
             "--alignments-dir", tmp_dir,
             "--output-dir", tmp_out_dir,
             "--datatype", datatype,
-            "--cores", str(args.num_threads),
-            "--scheduler", "openmp",
+            "--cores", str(num_threads),
+            "--scheduler", parallel,
             "--continue",
             "--raxml-global-parameters", model_path
         ]
@@ -492,7 +503,7 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     #     get all possible rootings per tree
     # -------------------------------------------------------------------------
-    @vectorize_parallel( method = 'adaptive', num_procs = 1 )
+    @vectorize_parallel( method = pardec_method, num_procs = num_threads )
     def run_rootings_processes( edge_dir, work_dir ):
         rootings_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
         rootings_chk_file = os.path.join( rootings_out_dir, "rootings_cmd.txt" )
@@ -526,7 +537,7 @@ if __name__ == "__main__":
     #     Species Delimitation
     # -------------------------------------------------------------------------
 
-    @vectorize_parallel( method = 'adaptive', num_procs = 1 )
+    @vectorize_parallel( method = pardec_method, num_procs = num_threads )
     def run_mptp_processes( edge_dir, work_dir ):
 
         # switch this via an option (best tree only vs. all rootings vs. longest edge rooting)
