@@ -3,13 +3,15 @@
 import argparse
 import glob
 import os
-import subprocess
+import subprocess as sub
 import sys
 import scripts.util as util
 import time
 import pprint
 
 base_dir_ = os.path.dirname( os.path.realpath(__file__) )
+
+FNULL = open(os.devnull, 'wb')
 
 execfile( os.path.join( base_dir_, "deps/parallel_decorators/parallel_decorators.py" ) )
 
@@ -65,6 +67,14 @@ def command_line_args_parser():
         action='store_true',
         dest='protein',
     )
+
+    parser.add_argument(
+        '--bootstrap',
+        help="Enables bootstrapping after per-edge tree search to obtain diversity variance.",
+        action='store_true',
+        dest='bootstrap',
+    )
+
 
     parser.add_argument(
         '--min-queries',
@@ -229,15 +239,15 @@ def call_with_check_file(
         if out_file_path is not None:
             if not os.path.exists( os.path.dirname( out_file_path )):
                 os.makedirs( os.path.dirname( out_file_path ))
-            out_file = open( out_file_path, "w" )
+            out_file = open( out_file_path, "w+" )
         err_file = None
         if err_file_path is not None:
             if not os.path.exists( os.path.dirname( err_file_path )):
                 os.makedirs( os.path.dirname( err_file_path ))
-            err_file = open( err_file_path, "w" )
+            err_file = open( err_file_path, "w+" )
 
         # Call the command and record its exit code.
-        success = ( subprocess.call( cmd_to_call, stdout=out_file, stderr=err_file ) == 0 )
+        success = ( sub.call( cmd_to_call, stdout=out_file, stderr=err_file ) == 0 )
 
         # If we were not successfull, end the function here.
         if not success:
@@ -246,7 +256,7 @@ def call_with_check_file(
         # Only if the command returned successfully, create the checkfile.
         if not os.path.exists( os.path.dirname( check_file_path )):
             os.makedirs( os.path.dirname( check_file_path ))
-        with open( check_file_path, "w") as check_file_handle:
+        with open( check_file_path, "w+") as check_file_handle:
             check_file_handle.write( cmd_string )
         return success
 
@@ -256,8 +266,8 @@ def mkdirp( path ):
 
 def get_treestring( jplace_path ):
     cmd = ["awk", "-F", "\"", '''{if($2=="tree"){printf "%s", $4;}}''', jplace_path ]
-    print "Tree-getting commandline is %s" % subprocess.list2cmdline(cmd)
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    print "Tree-getting commandline is %s" % sub.list2cmdline(cmd)
+    p = sub.Popen(cmd, stdout=sub.PIPE)
     out, err = p.communicate()
     return out
 
@@ -501,7 +511,73 @@ if __name__ == "__main__":
                 shutil.copy( filename, pargenes_out_dir )
 
     # -------------------------------------------------------------------------
-    #     get all possible rootings per tree
+    #     Mode 1: Variance by bootstrap
+    # -------------------------------------------------------------------------
+    @vectorize_parallel( method = pardec_method, num_procs = num_threads )
+    def run_bootstraps_processes( edge_dir, work_dir ):
+        bs_reps_out_dir = os.path.join( args.work_dir, edge_dir, "bs_rep_msas" )
+        bs_reps_chk_file = os.path.join( bs_reps_out_dir, "bs_reps_cmd.txt" )
+        bs_reps_out_file = os.path.join( bs_reps_out_dir, "bs_reps_log.txt" )
+
+        msa = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
+
+        bs_reps_cmd = [
+            paths[ "msa_bootstrap" ],
+            msa,
+            bs_reps_out_dir
+        ]
+
+        if ( not call_with_check_file(
+            bs_reps_cmd,
+            bs_reps_chk_file,
+            out_file_path=bs_reps_out_file,
+            err_file_path=bs_reps_out_file,
+            verbose=args.verbose
+        ) ):
+            raise RuntimeError( "get_all_bs_reps has failed!" )
+
+        trees_eval_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
+        trees_eval_out_file = os.path.join( trees_eval_out_dir, "bs_reps_log.txt" )
+
+        best_tree = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )[0]
+        bsrep_msas = glob.glob( os.path.join( bs_reps_out_dir, "replicate_*.fasta" ) )
+
+        for rep_msa in bsrep_msas:
+            filename = rep_msa.split( "/" )[-1]
+            name = filename.split( "." )[0]
+
+            trees_eval_chk_file = os.path.join( trees_eval_out_dir, name + "_eval_cmd.txt" )
+
+            # reevaluate the tree under this bootstrapped MSA
+
+            trees_eval_cmd = [
+                paths[ "raxml-ng" ],
+                "--evaluate",
+                "--msa", rep_msa,
+                "--tree", best_tree,
+                "--prefix", trees_eval_out_dir + "/" + name,
+                "--model", model,
+                "--threads", "1"
+            ]
+
+            if ( not call_with_check_file(
+                trees_eval_cmd,
+                trees_eval_chk_file,
+                out_file_path=trees_eval_out_file,
+                err_file_path=trees_eval_out_file,
+                verbose=args.verbose
+            ) ):
+                raise RuntimeError( "trees_eval has failed!" )
+
+            # rename the resulting tree
+            sub.call(["ln", "-s", os.path.join( trees_eval_out_dir, name + ".raxml.mlTrees" ),
+                                    os.path.abspath(os.path.join( trees_eval_out_dir, name + ".newick"))], stdout=FNULL)
+
+        return 0
+
+
+    # -------------------------------------------------------------------------
+    #     Mode 2: Variance by different rootings
     # -------------------------------------------------------------------------
     @vectorize_parallel( method = pardec_method, num_procs = num_threads )
     def run_rootings_processes( edge_dir, work_dir ):
@@ -509,11 +585,11 @@ if __name__ == "__main__":
         rootings_chk_file = os.path.join( rootings_out_dir, "rootings_cmd.txt" )
         rootings_out_file = os.path.join( rootings_out_dir, "rootings_log.txt" )
 
-        bestTree = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
+        best_tree = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )[0]
 
         rootings_cmd = [
             paths[ "get_all_rootings" ],
-            bestTree[0],
+            best_tree,
             rootings_out_dir
         ]
 
@@ -528,10 +604,16 @@ if __name__ == "__main__":
 
         return 0
 
-    runtime = time.time()
-    run_rootings_processes( edge_list, args.work_dir )
-    runtime = time.time() - runtime
-    runtimes.append({"name":"get_all_rootings", "time":runtime})
+    if args.bootstrap:
+        runtime = time.time()
+        run_bootstraps_processes( edge_list, args.work_dir )
+        runtime = time.time() - runtime
+        runtimes.append({"name":"boostrap", "time":runtime})
+    else:
+        runtime = time.time()
+        run_rootings_processes( edge_list, args.work_dir )
+        runtime = time.time() - runtime
+        runtimes.append({"name":"get_all_rootings", "time":runtime})
 
     # -------------------------------------------------------------------------
     #     Species Delimitation
@@ -571,6 +653,7 @@ if __name__ == "__main__":
 
         return 0
 
+    print "running mptp!"
     runtime = time.time()
     run_mptp_processes( edge_list, args.work_dir )
     runtime = time.time() - runtime
@@ -592,7 +675,7 @@ if __name__ == "__main__":
             d = os.path.join(args.work_dir, d, "delimit")
 
             # for all possible runs/rootings of the delimitation
-            file_paths = glob.glob( os.path.join(d, "edge_*/mptp_result.txt" ) )
+            file_paths = glob.glob( os.path.join(d, "*/mptp_result.txt" ) )
             res = []
             for path in file_paths:
                 # parse the results
