@@ -68,7 +68,7 @@ for node in tree.traverse("postorder"):
 
 #### print the tree as newick
 with open(os.path.join(out_dir, "tree.newick"), "w+") as f:
-    f.write(tree.write(format=5))
+    f.write(tree.write(format=5,dist_formatter="%.12f"))
 
 #### randomly select one individual per population for the reference set,
     # and the rest for the query set
@@ -94,7 +94,7 @@ tree.prune(ref_list, preserve_branch_length=True)
 
 #### write the reference tree
 with open(os.path.join(out_dir, "reference.newick"), "w+") as f:
-    f.write(tree.write(format=5))
+    f.write(tree.write(format=5,dist_formatter="%.12f"))
 
 #### write a map for the reference set and a map for the query set
     # (so we can later split the MSA coming from the sequence simulator)
