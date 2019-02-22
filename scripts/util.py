@@ -159,11 +159,16 @@ def try_resolve_otu_map_back(machine = get_platform()):
 
 def try_resolve_pargenes(machine = get_platform()):
   pargenesdir = os.path.join(basedir, "ParGenes")
-  print(pargenesdir)
-  res = sub.call(['./install.sh'], cwd=pargenesdir, shell=True)
+  # print(pargenesdir)
+  res = sub.call(['./install.sh'], cwd=pargenesdir, shell=True, stdout=FNULL)
   if (0 == res):
     sub.call(['touch', os.path.join(pargenesdir, "is_installed_pargenes")])
   return res
+
+def try_resolve_swarm(machine = get_platform()):
+  swarmdir = os.path.join(basedir, "swarm/src")
+  # print(swarmdir)
+  return sub.call(["make", "-C", swarmdir], stdout=FNULL)
 
 def try_resolve_get_all_rootings(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
@@ -189,6 +194,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_otu_map_back( machine )
     elif name == "pargenes":
         return try_resolve_pargenes( machine )
+    elif name == "swarm":
+        return try_resolve_swarm( machine )
     else:
         raise RuntimeError( "No such subprogram name: " + name )
 
