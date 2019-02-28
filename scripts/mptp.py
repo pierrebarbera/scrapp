@@ -5,6 +5,11 @@ def parse( file_path ):
   result = dict()
   species_count = 0
 
+  from collections import defaultdict
+  delim_map=defaultdict(list)
+
+  reading_taxa=False
+  cur_cluster=0
   for line in open ( file_path ):
     parts = line.split( ":" )
 
@@ -20,7 +25,10 @@ def parse( file_path ):
       result["species_count"] = int(parts[1])
     elif parts[0].startswith( "Species" ):
       species_count += 1
-      # parse species names (ignore for now)
+      cur_cluster=int(parts[0].split(' ')[1])
+      reading_taxa=True
+    elif reading_taxa:
+      delim_map[ cur_cluster ].append(parts[0].rstrip())
 
   # check if everything is there
   if not "species_count" in result:
@@ -33,6 +41,8 @@ def parse( file_path ):
   # check if species count makes sense
   if result["species_count"] != species_count:
     raise RuntimeError( "Inconsistent species count in file: {}".format(filepath) )
+
+  result["delimitation"]=dict(delim_map)
 
   return result
 
