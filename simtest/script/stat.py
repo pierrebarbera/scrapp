@@ -31,11 +31,24 @@ base_dir = os.path.realpath(os.path.join(script_dir, "../"))
 
 # a function to read in a delimitation result as a cluster indexed list of taxa labels
 def read_delim(delim_file):
-    return dict()
+    import imp
+    mptp = imp.load_source('mptp', '../../scripts/mptp.py')
+    return mptp.parse(delim_file)['delimitation']
 
 # a function to take the simulated ground truth delimitation and reduce it down to only
 # include the taxa specified in a per branch delimitation result
+def reduce(lhs, rhs):
+    # listify the "to keep" set
+    to_keep = sorted({x for v in rhs.itervalues() for x in v})
 
+    from collections import defaultdict
+    ret=defaultdict(list)
+
+    for key,taxa_list in lhs.iteritems():
+        for taxon in taxa_list:
+            if taxon in to_keep:
+                ret[key].append(taxon)
+    return dict(ret)
 
 def num_taxa(delim):
     num=0
@@ -74,4 +87,16 @@ with open(os.path.join(base_dir, "tree/popmap"), "r") as f:
 with open(os.path.join(base_dir, "tree/qrymap"), "r") as f:
     qry_map=json.load(f)
 
-# print NMI(qry_map, truth)
+
+result_delim = read_delim(os.path.join(base_dir, "mptp_result.txt"))
+
+alternative_facts = reduce(truth, result_delim)
+
+# print result_delim
+
+print NMI(alternative_facts, result_delim)
+
+
+# print "\n\n"
+
+# print result_delim

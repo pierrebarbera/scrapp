@@ -13,10 +13,6 @@ def parse( file_path ):
   for line in open ( file_path ):
     parts = line.split( ":" )
 
-    # skip lines that contain no information
-    if not parts:
-      continue
-
     if parts[0].startswith( "Null-model score" ):
       result["null_model_score"] = float(parts[1])
     elif parts[0].startswith( "Best score for multi coalescent rate" ):
@@ -28,7 +24,9 @@ def parse( file_path ):
       cur_cluster=int(parts[0].split(' ')[1])
       reading_taxa=True
     elif reading_taxa:
-      delim_map[ cur_cluster ].append(parts[0].rstrip())
+      taxon=parts[0].rstrip().rsplit( "_" )[0]
+      if len(taxon) != 0:
+        delim_map[ cur_cluster ].append(taxon)
 
   # check if everything is there
   if not "species_count" in result:
