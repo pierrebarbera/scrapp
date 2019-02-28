@@ -465,7 +465,7 @@ if __name__ == "__main__":
 
 
         if ( args.parallel == "threads" ):
-            parallel = "openmp"
+            parallel = "fork"
         elif ( args.parallel == "mpi"):
             parallel = "split"
 
