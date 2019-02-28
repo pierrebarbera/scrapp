@@ -139,7 +139,7 @@ def try_resolve_alignment_splitter(machine = get_platform()):
     sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/alignment_splitter.cpp"))], stdout=FNULL)
 
     # make update on genesis
-    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
 
 def try_resolve_phy2fasta(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
@@ -147,7 +147,7 @@ def try_resolve_phy2fasta(machine = get_platform()):
     sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/phy2fasta.cpp"))], stdout=FNULL)
 
     # make update on genesis
-    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
 
 def try_resolve_otu_map_back(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
@@ -155,7 +155,7 @@ def try_resolve_otu_map_back(machine = get_platform()):
     sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/otu_map_back.cpp"))], stdout=FNULL)
 
     # make update on genesis
-    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
 
 def try_resolve_pargenes(machine = get_platform()):
   pargenesdir = os.path.join(basedir, "ParGenes")
@@ -176,7 +176,7 @@ def try_resolve_get_all_rootings(machine = get_platform()):
     sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/get_all_rootings.cpp"))], stdout=FNULL)
 
     # make update on genesis
-    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
 
 def try_resolve(name, machine = get_platform()):
     print "Trying to resolve " + name + "..."

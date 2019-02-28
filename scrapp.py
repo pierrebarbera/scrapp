@@ -267,12 +267,13 @@ def get_treestring( jplace_path ):
 
 if __name__ == "__main__":
 
-    num_threads = args.num_threads
 
     pp = pprint.PrettyPrinter(indent=4)
     # Get all needed input.
     paths = util.subprogram_commands()
     args  = command_line_args()
+
+    num_threads = args.num_threads
 
     runtimes = []
 
