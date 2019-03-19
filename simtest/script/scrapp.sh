@@ -6,12 +6,11 @@ REF=${BASE}/msa/reference.fasta
 QRY=${BASE}/msa/query.fasta
 TREE=${BASE}/tree/reference.newick
 MODEL=${BASE}/tree/eval.raxml.bestModel
+JPLACE=${BASE}/placed/epa_result.jplace
 
-OUT=${BASE}/placed
+OUT=${BASE}/delimit
 
-mkdir -p $OUT
-rm $OUT/*
+mkdir -p ${OUT}
+rm -r ${OUT}/*
 
-cd $OUT
-epa-ng --tree ${TREE} --msa ${REF} --query ${QRY} --model ${MODEL} --filter-acc-lwr 0.99 --filter-max 10 "$@"
-cd -
+${BASE}/../scrapp.py  --jplace ${JPLACE} --alignment ${QRY} --work-dir ${OUT} --parallel threads --min-weight 0.5 --num-threads 40 "$@"

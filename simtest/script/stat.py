@@ -20,6 +20,8 @@
 # Exelixis Lab, Heidelberg Institute for Theoretical Studies
 # Schloss-Wolfsbrunnenweg 35, D-69118 Heidelberg, Germany
 
+from __future__ import print_function
+
 import os
 import sys
 import json
@@ -87,16 +89,31 @@ with open(os.path.join(base_dir, "tree/popmap"), "r") as f:
 with open(os.path.join(base_dir, "tree/qrymap"), "r") as f:
     qry_map=json.load(f)
 
+import glob
+import numpy as np
 
-result_delim = read_delim(os.path.join(base_dir, "mptp_result.txt"))
+NMI_map=dict()
 
-alternative_facts = reduce(truth, result_delim)
+#for each edge
+for edge_dir in glob.glob( os.path.join(base_dir, "delimit/edge_*") ):
 
-# print result_delim
+    edge_num=int( edge_dir.split("_")[-1] )
 
-print NMI(alternative_facts, result_delim)
+    per_edge_NMIs=[]
 
+    # for each variation
+    for result_file in glob.glob( os.path.join(edge_dir, "delimit/edge_*/mptp_result.txt") ):
+        # parse the result
+        result_delim = read_delim( result_file )
 
-# print "\n\n"
+        # get a reduced set of the ground truth that only includes the taxa of the result
+        alternative_facts = reduce(truth, result_delim)
 
-# print result_delim
+        # capture the specific result
+        per_edge_NMIs.append( NMI(alternative_facts, result_delim) )
+
+    NMI_map[edge_num]=per_edge_NMIs
+
+print("edge\tmean\tmedian\tstddev")
+for k,v in NMI_map.iteritems():
+    print(k , format( np.mean( v ), '.4f'), format( np.median( v ), '.4f'), format( np.std( v ), '.4f'), sep='\t')
