@@ -24,11 +24,55 @@ import os
 import sys
 import json
 import numpy.random as rd
+from ete3 import Tree
+from collections import defaultdict
+import pprint as pp
+
+def path_between(A, B):
+    # ETE3 doesn't have a built in path function (AFAIK), so instead
+    # we combine the paths to a common ancestor:
+    ancestor, path = A.get_common_ancestor( B, get_path=True )
+
+    # apparently ETE returns path as the path of A and B to the root here...
+    # so we need to find first where the paths intersect
+    AtoRoot = path[A]
+    BtoRoot = path[B]
+
+    # symmetric set difference
+    diffset = AtoRoot ^ BtoRoot
+
+    # take the difference of A's and B's path to root and add the ancestor
+    return diffset | {ancestor}
+
+
+def get_node_by_name(tree, name):
+    nodes = tree.search_nodes(name=name)
+    if not nodes:
+        raise Exception("No such node: {}", name)
+    return nodes[0]
+
+def popcount( taxa, pop_map ):
+    count = 0
+    taxonset = set(taxa)
+    for k,v in pop_map.iteritems():
+        vset = set(v)
+        # if the intersection is nonempty, add one to the count
+        if vset & taxonset:
+            count += 1
+
+    return count
 
 def print_species_map( spec_map, file ):
     with open(file, "w+") as f:
         f.write(json.dumps(spec_map, sort_keys=True,
                 indent=4, separators=(',', ': ')))
+
+def rand_names(n=1):
+    word_file = os.path.join(dir_path, "words.txt")
+    words = open(word_file).read().splitlines()
+
+    rand_nums = rd.choice(len(words), n, replace=False)
+    return {i:words[rand_nums[i]] for i in range(len(rand_nums))}
 
 if len(sys.argv) != 3:
     raise Exception("Usage: {} <num_taxa> <out-dir>", sys.argv[0])
@@ -37,12 +81,6 @@ out_dir = sys.argv[2]
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-def rand_names(n=1):
-    word_file = os.path.join(dir_path, "words.txt")
-    words = open(word_file).read().splitlines()
-
-    rand_nums = rd.choice(len(words), n, replace=False)
-    return {i:words[rand_nums[i]] for i in range(len(rand_nums))}
 
 n=int(sys.argv[1])
 MIGRATION_RATE=0.001
@@ -64,7 +102,7 @@ tree_sequence = msprime.simulate(population_configurations=pop_config,
                                 migration_matrix=migration_rate_mat,
                                 Ne=Ne,
                                 mutation_rate=mutation_rate,
-                                length=1000)
+                                length=1)
 mstree = tree_sequence.first()
 
 #### get some random tip labels
@@ -72,7 +110,6 @@ labels=rand_names(mstree.num_nodes)
 labels={ k:v for k, v in labels.iteritems() if (mstree.is_leaf(k)) }
 
 #### get a mapping of species (tips) to their original populations
-from collections import defaultdict
 pop_species_map = defaultdict(list)
 for leaf in mstree.leaves():
     pop_species_map[mstree.population(leaf)].append( labels[leaf] )
@@ -80,18 +117,18 @@ for leaf in mstree.leaves():
 print_species_map(pop_species_map, os.path.join(out_dir, "popmap"))
 
 #### convert branch lengths to # expected substitutions
-from ete3 import Tree
-tree = Tree(mstree.newick(node_labels=labels))
-# print(tree.write())
-for node in tree.traverse("postorder"):
+
+true_tree = Tree(mstree.newick(node_labels=labels))
+# print(true_tree.write())
+for node in true_tree.traverse("postorder"):
     node.dist = node.dist / (Ne * mutation_rate)
 
-#### print the tree as newick
+#### print the true_tree as newick
 with open(os.path.join(out_dir, "true_tree.newick"), "w+") as f:
-    f.write(tree.write(format=5,dist_formatter="%.12f"))
+    f.write(true_tree.write(format=5,dist_formatter="%.12f"))
 
 #### randomly select one individual per population for the reference set,
-    # and the rest for the query set
+    # add the rest for the query set
 ref_map = defaultdict(list)
 qry_map = defaultdict(list)
 for k,v in pop_species_map.iteritems():
@@ -108,17 +145,54 @@ N = len(ref_map.keys())
 for key in rd.choice(N, int(N*0.5), replace=False):
     del ref_map[key]
 
-#### trim out all others from the tree
-ref_list=[v[0] for k,v in ref_map.iteritems()]
-tree.prune(ref_list, preserve_branch_length=True)
+#### give inner nodes unique names such that we can find a mapping between true and ref later
+number=1000
+for node in true_tree.iter_search_nodes():
+    if not node.name:
+        node.name = str(number)
+        number += 1
 
-#### write the reference tree
+#### trim out all others from the true_tree
+ref_list=[v[0] for k,v in ref_map.iteritems()]
+ref_tree = true_tree.copy()
+ref_tree.prune(ref_list, preserve_branch_length=True)
+
+#### write the ref_tree
 with open(os.path.join(out_dir, "reference.newick"), "w+") as f:
-    f.write(tree.write(format=5,dist_formatter="%.12f"))
+    f.write(ref_tree.write(format=5,dist_formatter="%.12f"))
 
 #### write a map for the reference set and a map for the query set
     # (so we can later split the MSA coming from the sequence simulator)
 print_species_map(ref_map, os.path.join(out_dir, "refmap"))
 print_species_map(qry_map, os.path.join(out_dir, "qrymap"))
 
+#### determine the "true" species count of the edges in the ref tree
+# we do this by getting every edge (tuple of the two adjacent nodes) in the ref tree
+for distal in ref_tree.iter_search_nodes():
+    proximal = distal.up
+    # (except the root, its two edges are covered bottom up already)
+    if not proximal:
+        continue
 
+    # ... and finding their original locations in the true tree
+    P = get_node_by_name(true_tree, proximal.name)
+    D = get_node_by_name(true_tree, distal.name)
+
+    # then getting the path between those two in the true tree
+    prune_path = path_between(P, D)
+
+    # all nodes n from the path, except
+    pruned_nodes = [y for n in prune_path if n not in [P,D] for x in n.children if x not in prune_path for y in x.get_leaves()]
+
+    # and making a list of all leaves' labels in that list
+    pruned_leaf_labels = [ node.name for node in pruned_nodes if node.is_leaf() ]
+
+    # and using that to look up how many populations were removed
+    count = popcount( pruned_leaf_labels, qry_map )
+
+    # finally we capture that information on the ref tree
+    distal.add_features(species_count=count)
+
+#### write the annotated ref_tree
+with open(os.path.join(out_dir, "annot_reference.newick"), "w+") as f:
+    f.write(ref_tree.write(format=5,dist_formatter="%.12f",features=["species_count"]))
