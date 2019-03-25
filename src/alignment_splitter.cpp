@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <unordered_map>
+#include <vector>
 
 using namespace genesis;
 using namespace genesis::placement;
@@ -86,7 +87,38 @@ static SequenceSet read_any_seqfile(std::string const& file)
     return out_set;
 }
 
+std::vector<std::string> get_most_distant_leaf_per_node(
+    Matrix<double> const& pwd,
+    PlacementTree const& tree
+) {
+    auto ret = std::vector<std::string>( pwd.rows(), "" );
 
+    // Nothing to do.
+    if( pwd.rows() == 0 ) {
+        return ret;
+    }
+
+    // search each row (whose indices equal the node indices) for the distance maximum
+    // and the leaf behind it, then get that taxons name
+    for( size_t r = 1; r < pwd.rows(); ++r ) {
+        size_t best_c = 0;
+        double cur_max = 0.0;
+        for( size_t c = 0; c < pwd.cols(); ++c ) {
+            if ( pwd( r, c ) > cur_max ) {
+                // only act if this update to the current best would be a leaf
+                // (this prevents an inner node to be selected as most distant in cases
+                // where the leaf edge has dist = 0.0)
+                if ( is_leaf( tree.node_at( best_c ) ) ) {
+                    cur_max = pwd( r, c );
+                    best_c = c;
+                }
+            }
+        }
+        ret[ r ] = tree.node_at( best_c ).data<PlacementNodeData>().name;
+    }
+
+    return ret;
+}
 
 // =================================================================================================
 //     Main
@@ -101,21 +133,23 @@ int main( int argc, char** argv )
     LOG_INFO << "Started";
 
     // Check if the command line contains the right number of arguments.
-    if( argc < 4 or argc > 7 ) {
-        LOG_INFO << "Usage: " << argv[0] << " <jplace_file> <alignment_file> <output_dir> "
-                 << "<min_weight> <min_num> <max_num>";
+    if( argc < 4 or argc > 8 ) {
+        LOG_INFO << "Usage: " << argv[0] << " <jplace_file> <query_alignment> <output_dir> "
+                 << "<min_weight> <min_num> <max_num> <reference_alignment (activates outgroup inclusion)>";
         return 1;
     }
 
     // In out paths.
     auto jplace_file = std::string( argv[1] );
-    auto aln_file    = std::string( argv[2] );
+    auto query_alignment    = std::string( argv[2] );
     auto output_dir  = utils::trim_right( std::string( argv[3] ), "/") + "/";
 
     // If the argument is given, parse the min weight threshold.
     double min_weight = 0.51;
     size_t min_num = 4;
     size_t max_num = 500;
+    bool include_outgroup = false;
+
     if( argc >= 5 ) {
         min_weight = std::atof( argv[4] );
     }
@@ -126,6 +160,18 @@ int main( int argc, char** argv )
     // and the maximum number: if above this, do otu clustering
     if( argc >= 7 ) {
         max_num = std::atoi( argv[6] );
+    }
+    std::string reference_alignment;
+    if( argc >= 8 ) {
+        reference_alignment = argv[7];
+
+        include_outgroup = file_exists( reference_alignment );
+
+        if ( include_outgroup ) {
+            min_num += 1;
+        } else {
+            throw std::invalid_argument{std::string("File '") + reference_alignment + "' does not exist."};
+        }
     }
 
     LOG_INFO << "Specified: min_weight\t= " << min_weight;
@@ -173,6 +219,14 @@ int main( int argc, char** argv )
     LOG_INFO << "Dereplicating sequences.";
     merge_duplicates( seqs );
 
+    // after dereplication we add the ref seqs, if specified
+    if ( include_outgroup ) {
+        auto ref_seqs = read_any_seqfile( reference_alignment );
+        for ( auto& s : ref_seqs ) {
+            seqs.add( s );
+        }
+    }
+
     // Build map from seq label to id in the set.
     bool alignment_had_adundance = false;
     LOG_INFO << "Processing alignment.";
@@ -193,6 +247,13 @@ int main( int argc, char** argv )
     }
     if ( alignment_had_adundance ) {
         LOG_INFO << "Detected abundance information in the original alignment, ignoring multiplicity count from the pqueries!";
+    }
+
+    // precompute node to node distance matrix to determine most distant taxon for each node
+    std::vector<std::string> most_distant_taxon;
+    if ( include_outgroup ) {
+        auto pairwise_node_dists = node_branch_length_distance_matrix( sample.tree() );
+        most_distant_taxon = get_most_distant_leaf_per_node( pairwise_node_dists, sample.tree() );
     }
 
     // Fill sequence sets for each edge.
@@ -230,6 +291,19 @@ int main( int argc, char** argv )
                 edge_seqs[ edge_index ].add( seqs[ seq_id ] );
                 ++finished_labels[ pqry_name.name ];
             }
+        }
+
+        // if outgroup inclusion was selected, add that taxon to the set (with a little renaming for clarity)
+        if ( include_outgroup and not most_distant_taxon.empty() ) {
+            auto const& edge = sample.tree().edge_at( edge_index );
+            auto const primary_node_id = edge.primary_node().index();
+
+            auto seq_id = seq_label_map[ most_distant_taxon[ primary_node_id ] ];
+
+            Sequence seq_cpy = seqs[ seq_id ];
+            seq_cpy.label( "__SCRAPP_OUTGROUP__" + seq_cpy.label() );
+
+            edge_seqs[ edge_index ].add( seq_cpy );
         }
     }
 

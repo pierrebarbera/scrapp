@@ -19,7 +19,7 @@ basedir = os.path.abspath( os.path.realpath( os.path.join(
 # in case that raxml-ng or mptp is actually installed on the system already.
 prog_paths = {
     "alignment_splitter" : [basedir + "/genesis/bin/apps/"],
-    "get_all_rootings"   : [basedir + "/genesis/bin/apps/"],
+    "get_rooting"        : [basedir + "/genesis/bin/apps/"],
     "phy2fasta"          : [basedir + "/genesis/bin/apps/"],
     "otu_map_back"       : [basedir + "/genesis/bin/apps/"],
     "mptp"               : [basedir + "/mptp/bin/"],
@@ -170,10 +170,10 @@ def try_resolve_swarm(machine = get_platform()):
   # print(swarmdir)
   return sub.call(["make", "-C", swarmdir], stdout=FNULL)
 
-def try_resolve_get_all_rootings(machine = get_platform()):
+def try_resolve_get_rooting(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
     # ensure the symlink exists
-    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/get_all_rootings.cpp"))], stdout=FNULL)
+    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/get_rooting.cpp"))], stdout=FNULL)
 
     # make update on genesis
     return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
@@ -186,8 +186,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_mptp( machine )
     elif name == "alignment_splitter":
         return try_resolve_alignment_splitter( machine )
-    elif name == "get_all_rootings":
-        return try_resolve_get_all_rootings( machine )
+    elif name == "get_rooting":
+        return try_resolve_get_rooting( machine )
     elif name == "phy2fasta":
         return try_resolve_phy2fasta( machine )
     elif name == "otu_map_back":

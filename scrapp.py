@@ -84,6 +84,14 @@ def command_line_args_parser():
     )
 
     parser.add_argument(
+        "--ref-align-outgrouping",
+        help="Root the placement trees by using the farthest taxon of the ref tree as an outgroup. Option specifies the reference alignment.",
+        action="store_true",
+        type=str
+        dest="reference_alignment"
+    )
+
+    parser.add_argument(
         '--test',
         help="Test the pipeline with the first x edges.",
         action='store',
@@ -316,7 +324,8 @@ if __name__ == "__main__":
             args.work_dir,
             str(args.min_weight),
             str(args.min_query),
-            str(args.max_query)
+            str(args.max_query),
+            args.reference_alignment
         ]
         runtime = time.time()
         succ = call_with_check_file(
@@ -502,7 +511,7 @@ if __name__ == "__main__":
                 shutil.copy( filename, pargenes_out_dir )
 
     # -------------------------------------------------------------------------
-    #     get all possible rootings per tree
+    #    EITHER root the trees on the outgroup OR get all possible rootings per tree
     # -------------------------------------------------------------------------
     @vectorize_parallel( method = pardec_method, num_procs = num_threads )
     def run_rootings_processes( edge_dir, work_dir ):
@@ -513,9 +522,10 @@ if __name__ == "__main__":
         bestTree = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
 
         rootings_cmd = [
-            paths[ "get_all_rootings" ],
+            paths[ "get_rooting" ],
             bestTree[0],
-            rootings_out_dir
+            rootings_out_dir,
+            "all" if not args.reference_alignment else "outgroup"
         ]
 
         if ( not call_with_check_file(
@@ -525,14 +535,14 @@ if __name__ == "__main__":
             err_file_path=rootings_out_file,
             verbose=args.verbose
         ) ):
-            raise RuntimeError( "get_all_rootings has failed!" )
+            raise RuntimeError( "get_rooting has failed!" )
 
         return 0
 
     runtime = time.time()
     run_rootings_processes( edge_list, args.work_dir )
     runtime = time.time() - runtime
-    runtimes.append({"name":"get_all_rootings", "time":runtime})
+    runtimes.append({"name":"get_rooting", "time":runtime})
 
     # -------------------------------------------------------------------------
     #     Species Delimitation
@@ -541,7 +551,6 @@ if __name__ == "__main__":
     @vectorize_parallel( method = pardec_method, num_procs = num_threads )
     def run_mptp_processes( edge_dir, work_dir ):
 
-        # switch this via an option (best tree only vs. all rootings vs. longest edge rooting)
         trees = glob.glob( os.path.join( args.work_dir, edge_dir, "trees", "*.newick") )
         for tree in trees:
             # get the name of the file to use as a subdirectory name

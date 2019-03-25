@@ -21,11 +21,24 @@ void print_rootings(Tree const& tree,
 		// print to file named after edge index
 		std::stringstream ss;
 		ss << out_dir << "edge_" << id << ".newick";
-		// debug print
-		// LOG_DBG << ss.str();
-		// LOG_DBG << PrinterCompact().print( cur_tree );
 		NewickWriter().to_file( cur_tree, ss.str() );
 	}
+}
+
+/*
+  version of find_node that uses starts_with instead of equals
+ */
+TreeNode* find_node_starts_with(
+    Tree& tree,
+    const std::string& name
+) {
+    for( auto& node : tree.nodes() ) {
+        if( starts_with( node.data<CommonNodeData>().name, name ) ) {
+            return &node;
+        }
+    }
+
+    return nullptr;
 }
 
 int main(int argc, char* argv[]) {
@@ -36,8 +49,8 @@ int main(int argc, char* argv[]) {
   LOG_INFO << "Started";
 
 	// Check if the command line contains the right number of arguments.
-  if( argc != 3 ) {
-      LOG_INFO << "Usage: " << argv[0] << " <tree_file> <output_dir>";
+  if( argc != 4 ) {
+      LOG_INFO << "Usage: " << argv[0] << " <tree_file> <output_dir> <mode>";
       return 1;
   }
 
@@ -48,11 +61,31 @@ int main(int argc, char* argv[]) {
 	if ( not is_dir( out_dir ) ) {
 		throw std::runtime_error{std::string("output_dir doesn't exist or isnt a directory: ") + out_dir};
 	}
-
 	out_dir = dir_normalize_path( out_dir );
 
-	// print the desired taxa lists to file, one per line
-	print_rootings( tree, out_dir );
+  std::string mode(argv[3]);
+
+  if ( equals_ci( mode, "all") ) {
+    // print all possible rootings of the tree
+    print_rootings( tree, out_dir );
+  } else if ( equals_ci( mode, "outgroup") ) {
+    // find the outgroup and root by it / remove it
+    auto names = node_names( tree );
+    auto outgroup_node_ptr = find_node_starts_with( tree, "__SCRAPP_OUTGROUP__" );
+
+    if ( outgroup_node_ptr == nullptr ) {
+      throw std::runtime_error{"Unable to find outgroup taxon in file: " + ref_tree};
+    }
+
+    auto& new_root = outgroup_node_ptr->link().outer().node();
+
+    change_rooting( tree, new_root );
+    delete_leaf_node( tree, *outgroup_node_ptr );
+
+    NewickWriter().to_file( tree, out_dir + "edge_byoutgroup" );
+  } else {
+    throw std::invalid_argument{"Invalid mode: '" + mode + "'. Choose either 'all' or 'outgroup'."};
+  }
 
 	LOG_INFO << "Finished";
 
