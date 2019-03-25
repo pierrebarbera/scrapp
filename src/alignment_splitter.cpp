@@ -258,11 +258,15 @@ int main( int argc, char** argv )
             continue;
         }
 
-        LOG_INFO << "\tEdge: " << edge_index << "    \tSize: " << edge_seqs[ edge_index ].size();
+        // !! edge_num isnt the same ad the edge_index! former is as in jplace, latter is genesis internal
+        auto const& edge = sample.tree().edge_at( edge_index );
+        auto const edge_num = edge.data<PlacementEdgeData>().edge_num();
+
+        LOG_INFO << "\tEdge: " << edge_num << "    \tSize: " << edge_seqs[ edge_index ].size();
 
         // create edge outdir
-        auto edge_dir = output_dir + "edge_" + std::to_string( edge_index ) + "/";
-        dir_create(edge_dir);
+        auto edge_dir = output_dir + "edge_" + std::to_string( edge_num ) + "/";
+        dir_create( edge_dir );
 
         // Write result
         writer.to_file( edge_seqs[ edge_index ], edge_dir + "aln.fasta" );

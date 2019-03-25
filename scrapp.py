@@ -602,8 +602,8 @@ if __name__ == "__main__":
             summary = mptp.summarize( res )
 
             # add the summary to the overall result structure
-            ref_edge_id = d.split("/")[-2].split("_")[-1]
-            output.add_annotation("species-count", ref_edge_id, summary)
+            ref_edge_num = d.split("/")[-2].split("_")[-1]
+            output.add_annotation("species-count", ref_edge_num, summary)
 
         if args.verbose:
             output.to_stream(sys.stdout)
