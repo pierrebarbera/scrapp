@@ -30,6 +30,7 @@
 
 using namespace genesis;
 using namespace genesis::sequence;
+using namespace genesis::utils;
 
 int main( int argc, char** argv )
 {
@@ -37,7 +38,7 @@ int main( int argc, char** argv )
     (void) argv;
 
     // Activate logging.
-    utils::Logging::log_to_stdout();
+    Logging::log_to_stdout();
     // LOG_INFO << "Started " << utils::current_time();
 
     // Check if the command line contains the right number of arguments.
@@ -50,16 +51,20 @@ int main( int argc, char** argv )
     // Get command line stuff.
     auto output_name = std::string( argv[2] );
 
-    // Prepare reading and writing files.
-    auto reader = PhylipReader().mode(genesis::sequence::PhylipReader::Mode::kAutomatic);
-    auto writer = FastaWriter();
-    auto set = SequenceSet();
+    SequenceSet set;
 
     // Get labels of reference alignment.
-    reader.from_file( argv[1], set );
+    auto reader = PhylipReader();
+    try {
+        reader.read( from_file( argv[1] ), set );
+    } catch(std::exception& e) {
+        set.clear();
+        reader.mode( PhylipReader::Mode::kInterleaved );
+        reader.read( from_file( argv[1] ), set );
+    }
 
     // Write the file.
-    writer.to_file( set, output_name );
+    FastaWriter().to_file( set, output_name );
 
     // LOG_INFO << "Finished " << utils::current_time();
     return 0;

@@ -58,6 +58,36 @@ void merge_duplicates(
     }
 }
 
+static SequenceSet read_any_seqfile(std::string const& file)
+{
+    SequenceSet out_set;
+
+    auto reader = PhylipReader();
+    reader.site_casing( PhylipReader::SiteCasing::kToLower );
+    try {
+        reader.read( from_file( file ), out_set );
+    } catch(std::exception& e) {
+        out_set.clear();
+        reader.mode( PhylipReader::Mode::kInterleaved );
+        try {
+            reader.read( from_file( file ), out_set );
+        } catch(std::exception& e) {
+            out_set.clear();
+            try {
+                FastaReader()
+                    .site_casing( FastaReader::SiteCasing::kToLower )
+                    .read( from_file( file ), out_set );
+            } catch(std::exception& e) {
+                throw std::invalid_argument{"Cannot parse sequence file(s): Invalid file format? (only phylip and fasta allowed)"};
+            }
+        }
+    }
+
+    return out_set;
+}
+
+
+
 // =================================================================================================
 //     Main
 // =================================================================================================
@@ -103,7 +133,7 @@ int main( int argc, char** argv )
 
     // Read in placements.
     LOG_INFO << "Reading placements from jplace file.";
-    auto sample = JplaceReader().from_file( jplace_file );
+    auto sample = JplaceReader().read( from_file( jplace_file ) );
     LOG_DBG << "Found " << sample.size() << " Pqueries";
 
     rectify_values( sample );
@@ -131,20 +161,7 @@ int main( int argc, char** argv )
     // support to iterate a file (due to the stupid Phylip interleaved format). As we don't want to
     // maintain two implementations (Phylip with whole file and Fasta iteratievely), we simply
     // always read in the whole file. Might be worth improving in the future.
-    SequenceSet seqs;
-    try{
-        LOG_INFO << "Reading alignment as Phylip file.";
-        auto phylip_reader = PhylipReader();
-        phylip_reader.site_casing( PhylipReader::SiteCasing::kToLower );
-        phylip_reader.from_file( aln_file, seqs );
-    } catch( ... ) {
-        LOG_INFO << "Phylip failed, trying Fasta now.";
-        LOG_INFO << "Reading alignment as Fasta file.";
-        seqs.clear();
-        auto fasta_reader = FastaReader();
-        fasta_reader.site_casing( FastaReader::SiteCasing::kToLower );
-        fasta_reader.from_file( aln_file, seqs );
-    }
+    SequenceSet seqs = read_any_seqfile( query_alignment );
 
     // Input check.
     if( ! is_alignment( seqs )) {

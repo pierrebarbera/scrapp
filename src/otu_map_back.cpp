@@ -63,10 +63,10 @@ int main( int argc, char** argv )
 
     // read in otu file
     SequenceSet otus;
-    fasta_reader.from_file( otu_file, otus );
+    fasta_reader.read( from_file( otu_file ), otus );
 
     // STREAM in the aligned queries
-    auto aligned_it = FastaInputIterator( fasta_reader ).from_file( aln_file );
+    auto aligned_it = FastaInputIterator( from_file( aln_file ), fasta_reader );
 
     // prepare the output iterator
     std::ofstream out_stream( out_file );

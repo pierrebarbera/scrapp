@@ -12,13 +12,11 @@ void print_rootings(Tree const& tree,
 										std::string const& out_dir)
 {
 	// for all edges
-	for ( auto const& edge_it : tree.edges() ) {
-		auto const id = edge_it->index();
+	for ( auto const& edge : tree.edges() ) {
+		auto const id = edge.index();
 		// get a rooted copy of the tree at current edge
 		Tree cur_tree( tree );
-
-		add_root_node( cur_tree, cur_tree.edge_at(id) );
-
+		make_rooted( cur_tree, cur_tree.edge_at(id) );
 
 		// print to file named after edge index
 		std::stringstream ss;
@@ -26,7 +24,7 @@ void print_rootings(Tree const& tree,
 		// debug print
 		// LOG_DBG << ss.str();
 		// LOG_DBG << PrinterCompact().print( cur_tree );
-		DefaultTreeNewickWriter().to_file( cur_tree, ss.str() );
+		NewickWriter().to_file( cur_tree, ss.str() );
 	}
 }
 
@@ -44,7 +42,7 @@ int main(int argc, char* argv[]) {
   }
 
 	std::string ref_tree( argv[1] );
-	Tree tree = DefaultTreeNewickReader().from_file( ref_tree );
+	Tree tree = NewickReader().read( from_file( ref_tree ) );
 
 	std::string out_dir( argv[2] );
 	if ( not is_dir( out_dir ) ) {
