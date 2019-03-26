@@ -86,8 +86,8 @@ def command_line_args_parser():
     parser.add_argument(
         "--ref-align-outgrouping",
         help="Root the placement trees by using the farthest taxon of the ref tree as an outgroup. Option specifies the reference alignment.",
-        action="store_true",
-        type=str
+        action="store",
+        type=str,
         dest="reference_alignment"
     )
 
@@ -324,9 +324,11 @@ if __name__ == "__main__":
             args.work_dir,
             str(args.min_weight),
             str(args.min_query),
-            str(args.max_query),
-            args.reference_alignment
+            str(args.max_query)
         ]
+        if args.reference_alignment:
+            aln_splitter_cmd.append( args.reference_alignment )
+
         runtime = time.time()
         succ = call_with_check_file(
             aln_splitter_cmd,

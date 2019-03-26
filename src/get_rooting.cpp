@@ -8,21 +8,20 @@ using namespace genesis;
 using namespace genesis::tree;
 using namespace genesis::utils;
 
-void print_rootings(Tree const& tree,
-										std::string const& out_dir)
+void print_rootings(Tree const& tree, std::string const& out_dir)
 {
-	// for all edges
-	for ( auto const& edge : tree.edges() ) {
-		auto const id = edge.index();
-		// get a rooted copy of the tree at current edge
-		Tree cur_tree( tree );
-		make_rooted( cur_tree, cur_tree.edge_at(id) );
+  // for all edges
+  for ( auto const& edge : tree.edges() ) {
+    auto const id = edge.index();
+    // get a rooted copy of the tree at current edge
+    Tree cur_tree( tree );
+    make_rooted( cur_tree, cur_tree.edge_at(id) );
 
-		// print to file named after edge index
-		std::stringstream ss;
-		ss << out_dir << "edge_" << id << ".newick";
-		NewickWriter().to_file( cur_tree, ss.str() );
-	}
+    // print to file named after edge index
+    std::stringstream ss;
+    ss << out_dir << "edge_" << id << ".newick";
+    CommonTreeNewickWriter().to_file( cur_tree, ss.str() );
+  }
 }
 
 /*
@@ -32,13 +31,13 @@ TreeNode* find_node_starts_with(
     Tree& tree,
     const std::string& name
 ) {
-    for( auto& node : tree.nodes() ) {
-        if( starts_with( node.data<CommonNodeData>().name, name ) ) {
-            return &node;
-        }
+  for( auto& node : tree.nodes() ) {
+    if( starts_with( node.data<CommonNodeData>().name, name ) ) {
+      return &node;
     }
+  }
 
-    return nullptr;
+  return nullptr;
 }
 
 int main(int argc, char* argv[]) {
@@ -55,11 +54,11 @@ int main(int argc, char* argv[]) {
   }
 
 	std::string ref_tree( argv[1] );
-	Tree tree = NewickReader().read( from_file( ref_tree ) );
+	Tree tree = CommonTreeNewickReader().read( from_file( ref_tree ) );
 
 	std::string out_dir( argv[2] );
 	if ( not is_dir( out_dir ) ) {
-		throw std::runtime_error{std::string("output_dir doesn't exist or isnt a directory: ") + out_dir};
+		throw std::invalid_argument{std::string("output_dir doesn't exist or isn't a directory: ") + out_dir};
 	}
 	out_dir = dir_normalize_path( out_dir );
 
@@ -82,7 +81,7 @@ int main(int argc, char* argv[]) {
     change_rooting( tree, new_root );
     delete_leaf_node( tree, *outgroup_node_ptr );
 
-    NewickWriter().to_file( tree, out_dir + "edge_byoutgroup" );
+    CommonTreeNewickWriter().to_file( tree, out_dir + "edge_byoutgroup" );
   } else {
     throw std::invalid_argument{"Invalid mode: '" + mode + "'. Choose either 'all' or 'outgroup'."};
   }
