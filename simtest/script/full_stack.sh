@@ -37,5 +37,6 @@ echo "scrapp done!"
 # print statistic
 echo "printing statistic..."
 ./stat.py
+./compare_species_counts ../delimit/summary.newick ../tree/annot_reference.newick
 
 echo "end at `date`"
