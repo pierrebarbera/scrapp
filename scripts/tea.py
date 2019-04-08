@@ -136,7 +136,7 @@ class TEA:
       edge_id = int(tree_array[i])
       if edge_id in annotation_lookup:
         # replace with annotation
-        tree_array[i] = "[{}]".format( annotation_lookup[ edge_id ] )
+        tree_array[i] = "[&&NHX:species_count={}]".format( annotation_lookup[ edge_id ] )
       else:
         # erase
         tree_array[i] = ""
