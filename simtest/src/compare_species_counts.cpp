@@ -127,7 +127,7 @@ Tree convert_key_attribute_tree_to_scrapp_mass_tree( AttributeTree const& source
     );
 }
 
-double calc_per_edge_error( Tree& lhs, Tree& rhs )
+double calc_per_edge_error( Tree const& lhs, Tree const& rhs )
 {
     // need to have identical topology if we're to traverse simultaneously
     if ( not identical_topology( lhs, rhs ) ) {
@@ -200,33 +200,48 @@ int main( int argc, char** argv )
     reader.set_nhx_delimiters();
     reader.add_attribute( "species_count", KeyedAttributeTreeNewickReaderPlugin::Target::kEdge, "species_count", "0.0" );
 
+    std::vector<MassTree> mass_trees;
+
     auto attr_tree = reader.read( from_file( scrapp_tree_file ));
     // get two conversions of this tree: once with the values as special species_count
     auto scrapp_tree = convert_key_attribute_tree_to_scrapp_tree( attr_tree );
     // and once already converted into masses on a mass tree, so we can easily get the KR-Distance
-    auto scrapp_mass_tree = convert_key_attribute_tree_to_scrapp_mass_tree( attr_tree );
+    mass_trees.push_back( convert_key_attribute_tree_to_scrapp_mass_tree( attr_tree ) );
 
     // repeat for the true tree
     attr_tree = reader.read( from_file( true_tree_file ));
     auto true_tree = convert_key_attribute_tree_to_scrapp_tree( attr_tree );
-    auto true_mass_tree = convert_key_attribute_tree_to_scrapp_mass_tree( attr_tree );
+    mass_trees.push_back( convert_key_attribute_tree_to_scrapp_mass_tree( attr_tree ) );
 
-    if ( not identical_topology( scrapp_mass_tree, true_mass_tree ) ) {
+    if ( not identical_topology( mass_trees[0], mass_trees[1] ) ) {
         throw std::invalid_argument{"Trees have incompatible topology!"};
     }
 
-    // mass_trees_make_average_branch_lengths(  );
+    mass_trees_make_average_branch_lengths( mass_trees );
+
+    // normalize branch lengths
+    // scale_all_branch_lengths( mass_trees[0], 1 / length( mass_trees[0] ) );
+    // mass_tree_center_masses_on_branches( mass_trees[0] );
+
+    // scale_all_branch_lengths( mass_trees[1], 1 / length( mass_trees[1] ) );
+    // mass_tree_center_masses_on_branches( mass_trees[1] );
+
+    std::cout << "pure KRD: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
 
     // mass normalization
-    mass_tree_normalize_masses( scrapp_mass_tree );
-    mass_tree_normalize_masses( true_mass_tree );
+    mass_tree_normalize_masses( mass_trees[0] );
+    mass_tree_normalize_masses( mass_trees[1] );
+
+    std::cout << "normalized KRD: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
+
+    std::cout   << "normalized KRD, normalized by tree length: "
+                << earth_movers_distance( mass_trees[0], mass_trees[1] ) / length( mass_trees[0] ) << std::endl;
+
     // ignore branch lengths: a more classical hop-based EMD
-    mass_tree_transform_to_unit_branch_lengths( scrapp_mass_tree );
-    mass_tree_transform_to_unit_branch_lengths( true_mass_tree );
+    mass_tree_transform_to_unit_branch_lengths( mass_trees[0] );
+    mass_tree_transform_to_unit_branch_lengths( mass_trees[1] );
 
-    auto krd = earth_movers_distance( scrapp_mass_tree, true_mass_tree );
-
-    std::cout << "KRD: " << krd << std::endl;
+    std::cout << "normalized KRD, unit branch lengths: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
 
     std::cout << "total per edge error: " << calc_per_edge_error( scrapp_tree, true_tree ) << std::endl;
 
