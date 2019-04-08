@@ -27,6 +27,7 @@ import sys
 import json
 from math import log
 
+
 script_dir = os.path.dirname(os.path.realpath(__file__))
 
 base_dir = os.path.realpath(os.path.join(script_dir, "../"))
@@ -114,6 +115,6 @@ for edge_dir in glob.glob( os.path.join(base_dir, "delimit/edge_*") ):
 
     NMI_map[edge_num]=per_edge_NMIs
 
-print("edge\tmean\tmedian\tstddev")
+print("edge\tmax\tmin\tmean\tmedian\tstddev")
 for k,v in NMI_map.iteritems():
-    print(k , format( np.mean( v ), '.4f'), format( np.median( v ), '.4f'), format( np.std( v ), '.4f'), sep='\t')
+    print(k , format( np.max( v ), '.4f'), format( np.min( v ), '.4f'), format( np.mean( v ), '.4f'), format( np.median( v ), '.4f'), format( np.std( v ), '.4f'), sep='\t')
