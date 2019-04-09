@@ -127,7 +127,7 @@ Tree convert_key_attribute_tree_to_scrapp_mass_tree( AttributeTree const& source
     );
 }
 
-double calc_per_edge_error( Tree const& lhs, Tree const& rhs )
+std::vector<double> calc_per_edge_errors( Tree const& lhs, Tree const& rhs )
 {
     // need to have identical topology if we're to traverse simultaneously
     if ( not identical_topology( lhs, rhs ) ) {
@@ -169,7 +169,22 @@ double calc_per_edge_error( Tree const& lhs, Tree const& rhs )
         throw std::invalid_argument( "Incompatible MassTrees." );
     }
 
-    return std::accumulate( std::begin(per_edge_error), std::end(per_edge_error), 0.0);
+    // sort so that we may calc the median later
+    std::sort( std::begin(per_edge_error), std::end(per_edge_error) );
+
+    return per_edge_error;
+}
+
+void normalize_species_counts( Tree& tree )
+{
+    double total = 0.0;
+    for( auto& edge : tree.edges() ) {
+        total += edge.data<ScrappEdgeData>().species_count;
+    }
+
+    for( auto& edge : tree.edges() ) {
+        edge.data<ScrappEdgeData>().species_count /= total;
+    }
 }
 
 // =================================================================================================
@@ -243,7 +258,42 @@ int main( int argc, char** argv )
 
     std::cout << "normalized KRD, unit branch lengths: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
 
-    std::cout << "total per edge error: " << calc_per_edge_error( scrapp_tree, true_tree ) << std::endl;
+    auto per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree );
+
+    std::cout << "~~~ per edge errors ~~~" << std::endl;
+
+    auto error_sum = std::accumulate( std::begin(per_edge_errors), std::end(per_edge_errors), 0.0);
+    auto minmax = minimum_maximum( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    auto meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    auto med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
+
+    std::cout << "\tsum:\t" << error_sum << std::endl;
+    std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
+    std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
+    std::cout << "\tmedian:\t" << med << std::endl;
+    std::cout << "\tmin:\t" << minmax.min << std::endl;
+    std::cout << "\tmax:\t" << minmax.max << std::endl;
+
+    // normalize the species counts per tree
+    normalize_species_counts( scrapp_tree );
+    normalize_species_counts( true_tree );
+
+    per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree );
+
+    std::cout << "~~~ after normalization ~~~" << std::endl;
+
+    error_sum = std::accumulate( std::begin(per_edge_errors), std::end(per_edge_errors), 0.0);
+    minmax = minimum_maximum( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
+
+    std::cout << "\tsum:\t" << error_sum << std::endl;
+    std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
+    std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
+    std::cout << "\tmedian:\t" << med << std::endl;
+    std::cout << "\tmin:\t" << minmax.min << std::endl;
+    std::cout << "\tmax:\t" << minmax.max << std::endl;
+
 
     return 0;
 }
