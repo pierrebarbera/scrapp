@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
     change_rooting( tree, new_root );
     delete_leaf_node( tree, *outgroup_node_ptr );
 
-    CommonTreeNewickWriter().to_file( tree, out_dir + "edge_byoutgroup" );
+    CommonTreeNewickWriter().to_file( tree, out_dir + "edge_byoutgroup.newick" );
   } else {
     throw std::invalid_argument{"Invalid mode: '" + mode + "'. Choose either 'all' or 'outgroup'."};
   }
