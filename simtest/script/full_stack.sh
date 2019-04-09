@@ -9,11 +9,13 @@ MODEL=${BASE}/tree/eval.raxml.bestModel
 JPLACE=${BASE}/placed/epa_result.jplace
 SC=${BASE}/script
 
+NUM_THREADS=4
+
 set -e
 
 echo "start at `date`"
 
-cd $SC
+cd ${SC}
 
 echo "generate the tree..."
 ./msprime.sh
@@ -26,17 +28,17 @@ echo "sequences done!"
 
 # infer model params
 echo "infer model params..."
-./eval_reftree.sh
+./eval_reftree.sh --threads ${NUM_THREADS}
 echo "model params done!"
 
 # run placement
 echo "place..."
-./epa.sh
+./epa.sh --threads ${NUM_THREADS}
 echo "placement done!"
 
 # run scrapp
 echo "running scrapp..."
-./scrapp.sh
+./scrapp.sh --num-threads ${NUM_THREADS}
 # ./scrapp.sh --ref-align-outgrouping ${REF}
 echo "scrapp done!"
 

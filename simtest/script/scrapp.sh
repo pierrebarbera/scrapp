@@ -13,4 +13,4 @@ OUT=${BASE}/delimit
 mkdir -p ${OUT}
 rm -r ${OUT}/*
 
-${BASE}/../scrapp.py  --jplace ${JPLACE} --alignment ${QRY} --work-dir ${OUT} --parallel threads --min-weight 0.5 --num-threads 4 "$@"
+${BASE}/../scrapp.py  --jplace ${JPLACE} --alignment ${QRY} --work-dir ${OUT} --parallel threads --min-weight 0.5 "$@"
