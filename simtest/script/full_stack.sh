@@ -2,6 +2,11 @@
 DATE=`date '+%Y-%m-%d-%H:%M'`
 
 BASE=$(cd `dirname "${BASH_SOURCE[0]}"`/.. && pwd)
+REF=${BASE}/msa/reference.fasta
+QRY=${BASE}/msa/query.fasta
+TREE=${BASE}/tree/reference.newick
+MODEL=${BASE}/tree/eval.raxml.bestModel
+JPLACE=${BASE}/placed/epa_result.jplace
 SC=${BASE}/script
 
 set -e
@@ -32,6 +37,7 @@ echo "placement done!"
 # run scrapp
 echo "running scrapp..."
 ./scrapp.sh
+# ./scrapp.sh --ref-align-outgrouping ${REF}
 echo "scrapp done!"
 
 # print statistic

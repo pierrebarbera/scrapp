@@ -13,5 +13,5 @@ mkdir -p $OUT
 rm $OUT/*
 
 cd $OUT
-epa-ng --tree ${TREE} --msa ${REF} --query ${QRY} --model ${MODEL} --filter-acc-lwr 0.99 --filter-max 10 "$@"
+epa-ng --tree ${TREE} --msa ${REF} --query ${QRY} --model ${MODEL} --filter-acc-lwr 0.99 --filter-max 10 --threads 4 "$@"
 cd -
