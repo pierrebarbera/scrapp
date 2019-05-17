@@ -108,12 +108,15 @@ std::vector<std::string> get_most_distant_leaf_per_node(
                 // only act if this update to the current best would be a leaf
                 // (this prevents an inner node to be selected as most distant in cases
                 // where the leaf edge has dist = 0.0)
-                if ( is_leaf( tree.node_at( best_c ) ) ) {
+                if ( is_leaf( tree.node_at( c ) ) ) {
                     cur_max = pwd( r, c );
                     best_c = c;
                 }
             }
         }
+
+        assert ( is_leaf( tree.node_at( best_c ) ) );
+
         ret[ r ] = tree.node_at( best_c ).data<PlacementNodeData>().name;
     }
 
@@ -126,6 +129,8 @@ std::vector<std::string> get_most_distant_leaf_per_node(
 
 int main( int argc, char** argv )
 {
+
+    utils::Options::get().allow_file_overwriting( true );
     // Activate logging.
     utils::Logging::log_to_stdout();
     utils::Logging::details.date = true;
@@ -254,6 +259,10 @@ int main( int argc, char** argv )
     if ( include_outgroup ) {
         auto pairwise_node_dists = node_branch_length_distance_matrix( sample.tree() );
         most_distant_taxon = get_most_distant_leaf_per_node( pairwise_node_dists, sample.tree() );
+
+        if( most_distant_taxon.empty()) {
+            throw std::runtime_error{"get_most_distant_leaf_per_node failed?"};
+        }
     }
 
     // Fill sequence sets for each edge.
