@@ -130,8 +130,8 @@ def command_line_args_parser():
     # Add min weight arg, restricted to a certain range, also optional.
     def min_weight_float(x):
         x = float(x)
-        if x <= 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError("%r not in range (0.0, 1.0]"%(x,))
+        if x < 0.0 or x > 1.0:
+            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
         return x
     parser.add_argument(
         '--min-weight',
