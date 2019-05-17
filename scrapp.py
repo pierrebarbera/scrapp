@@ -141,6 +141,15 @@ def command_line_args_parser():
         default=0.5
     )
 
+    parser.add_argument(
+        '--seed',
+        help="Random number generator seed.",
+        action='store',
+        dest='seed',
+        type=int
+        # default=int(epoch_)
+    )
+
     return parser
 
 def command_line_args_postprocessor( args ):
@@ -264,7 +273,7 @@ def mkdirp( path ):
 
 def get_treestring( jplace_path ):
     cmd = ["awk", "-F", "\"", '''{if($2=="tree"){printf "%s", $4;}}''', jplace_path ]
-    print "Tree-getting commandline is %s" % subprocess.list2cmdline(cmd)
+    # print "Tree-getting commandline is %s" % subprocess.list2cmdline(cmd)
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     out, err = p.communicate()
     return out
@@ -490,6 +499,9 @@ if __name__ == "__main__":
             "--raxml-global-parameters", model_path
         ]
 
+        if args.seed:
+            pargenes_cmd.extend(["--seed", str(args.seed)])
+
         runtime = time.time()
         if ( not call_with_check_file(
             pargenes_cmd,
@@ -570,6 +582,9 @@ if __name__ == "__main__":
                 "--output_file",  os.path.join( mptp_out_dir, "mptp_result" )
             ]
 
+            if args.seed:
+                mptp_cmd.extend(["--seed", str(args.seed)])
+
             # do a delimitation per possible rooting
 
             if ( not call_with_check_file(
@@ -608,7 +623,7 @@ if __name__ == "__main__":
             res = []
             for path in file_paths:
                 # parse the results
-                res.append( mptp.parse(path) )
+                res.append( mptp.parse( path ) )
             # summarize them
             summary = mptp.summarize( res )
 
