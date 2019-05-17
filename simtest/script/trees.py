@@ -27,6 +27,7 @@ import numpy.random as rd
 from ete3 import Tree
 from collections import defaultdict
 import pprint as pp
+import math
 
 def path_between(A, B):
     # ETE3 doesn't have a built in path function (AFAIK), so instead
@@ -74,40 +75,60 @@ def rand_names(n=1):
     rand_nums = rd.choice(len(words), n, replace=False)
     return {i:words[rand_nums[i]] for i in range(len(rand_nums))}
 
-if len(sys.argv) != 3:
-    raise Exception("Usage: {} <num_taxa> <out-dir>", sys.argv[0])
+if len(sys.argv) < 3 or len(sys.argv) > 4:
+    raise Exception("Usage: {} <num_taxa> <out-dir> [seed]", sys.argv[0])
 
 out_dir = sys.argv[2]
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+if len(sys.argv) == 4:
+    SEED=int(sys.argv[3])
+else:
+    SEED=None
 
 n=int(sys.argv[1])
-MIGRATION_RATE=0.001
+MIGRATION_RATE=1e-11
+POP_SIZE=1e6
+SAMPLE_SIZE=100
+MU=1e-8
+SEQ_LENGTH=1000
+PRUNE_FRACT=0.2
+
+rd.seed(SEED)
+
 
 #### simulate the tree
 import msprime
 pop_config = []
 for _ in xrange(n):
-    pop_config.append( msprime.PopulationConfiguration(sample_size=10, initial_size=100) )
+    pop_config.append( msprime.PopulationConfiguration(sample_size=SAMPLE_SIZE, initial_size=POP_SIZE) )
 
 migration_rate_mat = [ [MIGRATION_RATE]*n for _ in xrange(n) ]
 for i in xrange(n):
     migration_rate_mat[i][i] = 0
 
-Ne=n*1000
-mutation_rate=1e-1
+Ne=POP_SIZE
+mutation_rate=MU
 
 tree_sequence = msprime.simulate(population_configurations=pop_config,
                                 migration_matrix=migration_rate_mat,
                                 Ne=Ne,
                                 mutation_rate=mutation_rate,
-                                length=1)
+                                length=SEQ_LENGTH,
+                                random_seed=SEED)
 mstree = tree_sequence.first()
 
 #### get some random tip labels
 labels=rand_names(mstree.num_nodes)
 labels={ k:v for k, v in labels.iteritems() if (mstree.is_leaf(k)) }
+
+genus_map = dict()
+for leaf in mstree.leaves():
+    genus_map[ mstree.population(leaf) ] = labels[leaf]
+
+for leaf in mstree.leaves():
+    labels[leaf] = genus_map[ mstree.population(leaf) ] + "_" + labels[leaf]
 
 #### get a mapping of species (tips) to their original populations
 pop_species_map = defaultdict(list)
@@ -117,11 +138,20 @@ for leaf in mstree.leaves():
 print_species_map(pop_species_map, os.path.join(out_dir, "popmap"))
 
 #### convert branch lengths to # expected substitutions
+# import tskit
+# span = mstree.interval[1] - mstree.interval[0]
+# for u in mstree.nodes():
+#     if mstree.parent(u) != tskit.NULL:
+#          expected_muts = span * mstree.branch_length(u) * mutation_rate
+#          print u, ": ", mstree.branch_length(u), " vs ", expected_muts
 
 true_tree = Tree(mstree.newick(node_labels=labels))
 # print(true_tree.write())
+RAX_MIN_BL=1e-6
 for node in true_tree.traverse("postorder"):
-    node.dist = node.dist / (Ne * mutation_rate)
+    node.dist = node.dist * mutation_rate
+    # clip the min branch length to make it workable with raxml-ng
+    node.dist=max(RAX_MIN_BL, node.dist)
 
 #### print the true_tree as newick
 with open(os.path.join(out_dir, "true_tree.newick"), "w+") as f:
@@ -142,7 +172,7 @@ for k,v in pop_species_map.iteritems():
 
 #### randomly trim out another 50% from the ref set
 N = len(ref_map.keys())
-for key in rd.choice(N, int(N*0.5), replace=False):
+for key in rd.choice(N, int(N*PRUNE_FRACT), replace=False):
     del ref_map[key]
 
 #### give inner nodes unique names such that we can find a mapping between true and ref later
@@ -195,4 +225,4 @@ for distal in ref_tree.iter_search_nodes():
 
 #### write the annotated ref_tree
 with open(os.path.join(out_dir, "annot_reference.newick"), "w+") as f:
-    f.write(ref_tree.write(format=5,dist_formatter="%.12f",features=["species_count"]))
+    f.write( ref_tree.write( format=5,dist_formatter="%.12f",features=["species_count"] ) )

@@ -33,10 +33,10 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 base_dir = os.path.realpath(os.path.join(script_dir, "../"))
 
 # a function to read in a delimitation result as a cluster indexed list of taxa labels
-def read_delim(delim_file):
+def read_delim(delim_file, has_mult=True):
     import imp
     mptp = imp.load_source('mptp', '../../scripts/mptp.py')
-    return mptp.parse(delim_file)['delimitation']
+    return mptp.parse( delim_file, has_mult )['delimitation']
 
 # a function to take the simulated ground truth delimitation and reduce it down to only
 # include the taxa specified in a per branch delimitation result
@@ -95,26 +95,30 @@ import numpy as np
 
 NMI_map=dict()
 
-#for each edge
-for edge_dir in glob.glob( os.path.join(base_dir, "delimit/edge_*") ):
+if len(sys.argv) == 2:
+    delim=read_delim(sys.argv[1], False)
+    print("NMI:",NMI(truth, delim))
+else:
+    #for each edge
+    for edge_dir in glob.glob( os.path.join(base_dir, "delimit/edge_*") ):
 
-    edge_num=int( edge_dir.split("_")[-1] )
+        edge_num=int( edge_dir.split("_")[-1] )
 
-    per_edge_NMIs=[]
+        per_edge_NMIs=[]
 
-    # for each variation
-    for result_file in glob.glob( os.path.join(edge_dir, "delimit/edge_*/mptp_result.txt") ):
-        # parse the result
-        result_delim = read_delim( result_file )
+        # for each variation
+        for result_file in glob.glob( os.path.join(edge_dir, "delimit/edge_*/mptp_result.txt") ):
+            # parse the result
+            result_delim = read_delim( result_file )
 
-        # get a reduced set of the ground truth that only includes the taxa of the result
-        alternative_facts = reduce(truth, result_delim)
+            # get a reduced set of the ground truth that only includes the taxa of the result
+            alternative_facts = reduce(truth, result_delim)
 
-        # capture the specific result
-        per_edge_NMIs.append( NMI(alternative_facts, result_delim) )
+            # capture the specific result
+            per_edge_NMIs.append( NMI(alternative_facts, result_delim) )
 
-    NMI_map[edge_num]=per_edge_NMIs
+        NMI_map[edge_num]=per_edge_NMIs
 
-print("edge\tmax\tmin\tmean\tmedian\tstddev")
-for k,v in NMI_map.iteritems():
-    print(k , format( np.max( v ), '.4f'), format( np.min( v ), '.4f'), format( np.mean( v ), '.4f'), format( np.median( v ), '.4f'), format( np.std( v ), '.4f'), sep='\t')
+    print("edge\tmax\tmin\tmean\tmedian\tstddev")
+    for k,v in NMI_map.iteritems():
+        print(k , format( np.max( v ), '.4f'), format( np.min( v ), '.4f'), format( np.mean( v ), '.4f'), format( np.median( v ), '.4f'), format( np.std( v ), '.4f'), sep='\t')

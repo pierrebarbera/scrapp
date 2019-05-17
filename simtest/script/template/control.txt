@@ -22,9 +22,9 @@
 
 [MODEL]    modelname        //  Evolutionary models are defined in [MODEL] blocks.
   [submodel]     JC         //  Here the substitution model is simply set as JC69.
-  [indelmodel]   NB  0.4 1  //  Geometric indel length distribution (q=0.4, r=1)
-  [insertrate]   0.08       //  insertion rate = 0.08 relative to substitution rate of 1
-  [deleterate]   0.12       //  deletion rate = 0.12 relative to substitution rate of 1
+  [indelmodel]   POW 1.5 100  //  Geometric indel length distribution (q=0.4, r=1)
+  [insertrate]   0       //  insertion rate = 0.08 relative to substitution rate of 1
+  [deleterate]   0       //  deletion rate = 0.12 relative to substitution rate of 1
 
 [TREE] treename  %%TREE%%
         //  User trees are defined here

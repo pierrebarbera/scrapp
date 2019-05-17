@@ -5,7 +5,9 @@ BASE=$(cd `dirname "${BASH_SOURCE[0]}"`/.. && pwd)
 REF=${BASE}/msa/reference.fasta
 QRY=${BASE}/msa/query.fasta
 TREE=${BASE}/tree/reference.newick
+# TREE=${BASE}/tree/eval.raxml.bestTree
 MODEL=${BASE}/tree/eval.raxml.bestModel
+# MODEL="GTR+G"
 
 OUT=${BASE}/placed
 

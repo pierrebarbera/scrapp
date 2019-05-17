@@ -127,7 +127,9 @@ Tree convert_key_attribute_tree_to_scrapp_mass_tree( AttributeTree const& source
     );
 }
 
-std::vector<double> calc_per_edge_errors( Tree const& lhs, Tree const& rhs )
+using per_edge_func = std::function<double(double,double)>;
+
+std::vector<double> calc_per_edge_errors( Tree const& lhs, Tree const& rhs, per_edge_func& func, bool allow_zero=true )
 {
     // need to have identical topology if we're to traverse simultaneously
     if ( not identical_topology( lhs, rhs ) ) {
@@ -161,7 +163,11 @@ std::vector<double> calc_per_edge_errors( Tree const& lhs, Tree const& rhs )
         auto lhs_sc = lhs_it.edge().data<ScrappEdgeData>().species_count;
         auto rhs_sc = rhs_it.edge().data<ScrappEdgeData>().species_count;
 
-        per_edge_error.emplace_back( std::abs(lhs_sc - rhs_sc) );
+        if ( rhs_sc != 0.0 or allow_zero ) {
+            auto diff = func(lhs_sc, rhs_sc);
+
+            per_edge_error.emplace_back( diff );
+        }
     }
 
     // Now we need to be done with both trees, otherwise we have a problem.
@@ -175,15 +181,37 @@ std::vector<double> calc_per_edge_errors( Tree const& lhs, Tree const& rhs )
     return per_edge_error;
 }
 
-void normalize_species_counts( Tree& tree )
+double total_counts( Tree const& tree )
 {
     double total = 0.0;
     for( auto& edge : tree.edges() ) {
         total += edge.data<ScrappEdgeData>().species_count;
     }
+    return total;
+}
+
+double total_counts_exp( Tree const& tree )
+{
+    double total = 0.0;
+    for( auto& edge : tree.edges() ) {
+        total += std::exp( edge.data<ScrappEdgeData>().species_count) ;
+    }
+    return total;
+}
+
+void normalize_species_counts( Tree& tree )
+{
+    auto total = total_counts( tree );
 
     for( auto& edge : tree.edges() ) {
-        edge.data<ScrappEdgeData>().species_count /= total;
+        edge.data<ScrappEdgeData>().species_count = ( edge.data<ScrappEdgeData>().species_count ) / total;
+    }
+}
+
+void modify_species_counts( Tree& tree )
+{
+    for( auto& edge : tree.edges() ) {
+        edge.data<ScrappEdgeData>().species_count = edge.data<ScrappEdgeData>().species_count * 1.0;
     }
 }
 
@@ -258,15 +286,31 @@ int main( int argc, char** argv )
 
     std::cout << "normalized KRD, unit branch lengths: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
 
-    auto per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree );
+    modify_species_counts( scrapp_tree );
+
+    per_edge_func abs_diff_func = [](double l, double r){return std::abs(l - r);};
+
+    auto per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree, abs_diff_func);
+
+    per_edge_func diff_func = [](double l, double r){return l - r;};
+    auto per_edge_diff = calc_per_edge_errors( scrapp_tree, true_tree, diff_func);
+    HistogramAccumulator histacc( per_edge_diff );
+    std::ofstream hist("hist");
+    hist << histacc.build_uniform_ranges_histogram( 10 );
 
     std::cout << "~~~ per edge errors ~~~" << std::endl;
+
+    auto const total_true_count = total_counts( true_tree );
+    auto const num_counts = per_edge_errors.size();
 
     auto error_sum = std::accumulate( std::begin(per_edge_errors), std::end(per_edge_errors), 0.0);
     auto minmax = minimum_maximum( std::begin(per_edge_errors), std::end(per_edge_errors) );
     auto meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
     auto med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
 
+    std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
+    std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
+    std::cout << "\treldev:\t" << meanstddev.mean / (total_true_count / num_counts) << std::endl;
     std::cout << "\tsum:\t" << error_sum << std::endl;
     std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
     std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
@@ -274,11 +318,33 @@ int main( int argc, char** argv )
     std::cout << "\tmin:\t" << minmax.min << std::endl;
     std::cout << "\tmax:\t" << minmax.max << std::endl;
 
+
+    per_edge_func rel_diff_func = [](double l, double r){return std::abs((l - r)/r);};
+    per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree, rel_diff_func, false);
+
+    std::cout << "~~~ using relative error ~~~" << std::endl;
+
+    error_sum = std::accumulate( std::begin(per_edge_errors), std::end(per_edge_errors), 0.0);
+    minmax = minimum_maximum( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
+
+    std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
+    std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
+    std::cout << "\treldev:\t" << meanstddev.mean / (1.0 / num_counts) << std::endl;
+    std::cout << "\tsum:\t" << error_sum << std::endl;
+    std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
+    std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
+    std::cout << "\tmedian:\t" << med << std::endl;
+    std::cout << "\tmin:\t" << minmax.min << std::endl;
+    std::cout << "\tmax:\t" << minmax.max << std::endl;
+
+
     // normalize the species counts per tree
     normalize_species_counts( scrapp_tree );
     normalize_species_counts( true_tree );
 
-    per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree );
+    per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree, abs_diff_func );
 
     std::cout << "~~~ after normalization ~~~" << std::endl;
 
@@ -287,6 +353,9 @@ int main( int argc, char** argv )
     meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
     med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
 
+    std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
+    std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
+    std::cout << "\treldev:\t" << meanstddev.mean / (1.0 / num_counts) << std::endl;
     std::cout << "\tsum:\t" << error_sum << std::endl;
     std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
     std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;

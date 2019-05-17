@@ -11,6 +11,6 @@ rm ${OUT}/*
 
 cd ${OUT}
 
-seq-gen -q -l 4000 -m GTR -g 4 -a 1.0 -or < ${TREE} > full_TRUE.phy
+seq-gen -q -l 1000 -m GTR -g 4 -a 1.0 -or "$@" < ${TREE} > full_TRUE.phy
 
 ${BASE}/script/split_msa.py

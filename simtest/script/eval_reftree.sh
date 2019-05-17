@@ -11,7 +11,8 @@ OUT=${BASE}/tree
 echo "start at `date`"
 
 cd $OUT
-raxml-ng --eval --tree ${TREE} --msa ${REF} --model GTR+G+FO --prefix ${OUT}/eval "$@"
+rm eval.raxml.*
+raxml-ng --evaluate --tree ${TREE} --msa ${REF} --model GTR+G --prefix ${OUT}/eval "$@"
 cd -
 
 echo "end at `date`"
