@@ -1,7 +1,7 @@
 from os import path
 import numpy as np
 
-def parse( file_path ):
+def parse( file_path, has_multiplicity=True ):
   result = dict()
   species_count = 0
 
@@ -15,7 +15,7 @@ def parse( file_path ):
 
     if parts[0].startswith( "Null-model score" ):
       result["null_model_score"] = float(parts[1])
-    elif parts[0].startswith( "Best score for multi coalescent rate" ):
+    elif parts[0].startswith( "Best score for" ):
       result["multi_coalescent_score"] = float(parts[1])
     elif parts[0].startswith( "Number of delimited species" ):
       result["species_count"] = int(parts[1])
@@ -24,7 +24,9 @@ def parse( file_path ):
       cur_cluster=int(parts[0].split(' ')[1])
       reading_taxa=True
     elif reading_taxa:
-      taxon=parts[0].rstrip().rsplit( "_" )[0]
+      taxon=parts[0].rstrip()
+      if has_multiplicity:
+        taxon=taxon.rsplit( "_", 1 )[0]
       if len(taxon) != 0:
         delim_map[ cur_cluster ].append(taxon)
 
