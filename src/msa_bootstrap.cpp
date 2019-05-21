@@ -38,14 +38,14 @@ int main(int argc, char* argv[]) {
         LOG_INFO << "Reading alignment as Phylip file.";
         auto phylip_reader = PhylipReader();
         phylip_reader.site_casing( PhylipReader::SiteCasing::kToLower );
-        phylip_reader.from_file( aln_file, seqs );
+        phylip_reader.read( from_file( aln_file ), seqs );
     } catch( ... ) {
         LOG_INFO << "Phylip failed, trying Fasta now.";
         LOG_INFO << "Reading alignment as Fasta file.";
         seqs.clear();
         auto fasta_reader = FastaReader();
         fasta_reader.site_casing( FastaReader::SiteCasing::kToLower );
-        fasta_reader.from_file( aln_file, seqs );
+        fasta_reader.read( from_file( aln_file ), seqs );
     }
 
     if ( seqs.empty() ) {
