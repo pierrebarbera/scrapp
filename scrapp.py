@@ -283,8 +283,8 @@ def mkdirp( path ):
 
 def get_treestring( jplace_path ):
     cmd = ["awk", "-F", "\"", '''{if($2=="tree"){printf "%s", $4;}}''', jplace_path ]
-    # print "Tree-getting commandline is %s" % subprocess.list2cmdline(cmd)
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    # print "Tree-getting commandline is %s" % sub.list2cmdline(cmd)
+    p = sub.Popen(cmd, stdout=sub.PIPE)
 
     out, err = p.communicate()
     return out
@@ -617,7 +617,7 @@ if __name__ == "__main__":
 
         rootings_cmd = [
             paths[ "get_rooting" ],
-            bestTree[0],
+            best_tree,
             rootings_out_dir,
             "all" if not args.reference_alignment else "outgroup"
         ]
