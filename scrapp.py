@@ -598,7 +598,7 @@ if __name__ == "__main__":
                 raise RuntimeError( "trees_eval has failed!" )
 
             # rename the resulting tree
-            sub.call(["ln", "-s", os.path.join( trees_eval_out_dir, name + ".raxml.mlTrees" ),
+            sub.call(["ln", "-s", os.path.join( trees_eval_out_dir, name + ".raxml.bestTree" ),
                                     os.path.abspath(os.path.join( trees_eval_out_dir, name + ".newick"))], stdout=FNULL)
 
         return 0
