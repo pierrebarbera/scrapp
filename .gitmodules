@@ -4,9 +4,6 @@
 [submodule "deps/mptp"]
 	path = deps/mptp
 	url = https://github.com/Pas-Kapli/mptp.git
-[submodule "deps/raxml-ng"]
-	path = deps/raxml-ng
-	url = https://github.com/amkozlov/raxml-ng.git
 [submodule "deps/genesis"]
 	path = deps/genesis
 	url = https://github.com/lczech/genesis.git

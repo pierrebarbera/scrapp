@@ -26,9 +26,7 @@ prog_paths = {
     "mptp"               : [basedir + "/mptp/bin/"],
     "swarm"              : [basedir + "/swarm/bin/"],
     "pargenes"           : [basedir + "/ParGenes/is_installed_"],
-    "raxml-ng"           : [basedir + "/raxml-ng/bin/",
-                            "https://github.com/amkozlov/raxml-ng/releases/download/0.7.0/raxml-ng_v0.7.0_linux_x86_64.zip"
-                            ]
+    "raxml-ng"           : [basedir + "/ParGenes/raxml-ng/bin/"]
 }
 
 FNULL = open(os.devnull, 'wb')
