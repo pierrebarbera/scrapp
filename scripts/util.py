@@ -22,11 +22,12 @@ prog_paths = {
     "get_rooting"        : [basedir + "/genesis/bin/apps/"],
     "phy2fasta"          : [basedir + "/genesis/bin/apps/"],
     "otu_map_back"       : [basedir + "/genesis/bin/apps/"],
+    "msa_bootstrap"      : [basedir + "/genesis/bin/apps/"],
     "mptp"               : [basedir + "/mptp/bin/"],
     "swarm"              : [basedir + "/swarm/bin/"],
     "pargenes"           : [basedir + "/ParGenes/is_installed_"],
     "raxml-ng"           : [basedir + "/raxml-ng/bin/",
-                            "https://github.com/amkozlov/raxml-ng/releases/download/0.4.1/raxml-ng_v0.4.1b"
+                            "https://github.com/amkozlov/raxml-ng/releases/download/0.7.0/raxml-ng_v0.7.0_linux_x86_64.zip"
                             ]
 }
 
@@ -157,6 +158,14 @@ def try_resolve_otu_map_back(machine = get_platform()):
     # make update on genesis
     return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
 
+def try_resolve_msa_bootstrap(machine = get_platform()):
+    genesisdir = os.path.join(basedir, "genesis")
+    # ensure the symlink exists
+    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/msa_bootstrap.cpp"))], stdout=FNULL)
+
+    # make update on genesis
+    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+
 def try_resolve_pargenes(machine = get_platform()):
   pargenesdir = os.path.join(basedir, "ParGenes")
   # print(pargenesdir)
@@ -192,6 +201,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_phy2fasta( machine )
     elif name == "otu_map_back":
         return try_resolve_otu_map_back( machine )
+    elif name == "msa_bootstrap":
+        return try_resolve_msa_bootstrap( machine )
     elif name == "pargenes":
         return try_resolve_pargenes( machine )
     elif name == "swarm":

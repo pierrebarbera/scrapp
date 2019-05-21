@@ -35,9 +35,55 @@ using namespace genesis::sequence;
 using namespace genesis::tree;
 using namespace genesis::utils;
 
-void merge_duplicates(
-    SequenceSet& set
-) {
+namespace here {
+
+    class Range {
+    public:
+      Range (const size_t begin, const size_t end)
+        : begin(begin), end(end) {assert(end >= begin);};
+      Range() = default;
+      ~Range () = default;
+
+      operator bool() const { return end > 0;}
+
+      size_t begin;
+      size_t end;
+
+      size_t span() { return end - begin;};
+
+    private:
+
+    };
+
+    here::Range get_valid_range(const std::string& sequence)
+    {
+      size_t begin = 0;
+      size_t end = sequence.length();
+
+      assert(end);
+
+      while(begin < end and sequence.c_str()[begin] == '-') {
+        begin++;
+      }
+
+      while(end > begin and sequence.c_str()[end - 1u] == '-') {
+        end--;
+      }
+
+      return Range(begin, end);
+    }
+
+    int overlap( const here::Range& lhs, const here::Range& rhs )
+    {
+        auto begin = std::max(lhs.begin, rhs.begin);
+        auto end = std::min(lhs.end, rhs.end);
+        return end - begin;
+    }
+
+}
+
+void merge_duplicates( SequenceSet& set )
+{
     // Find duplicates, remove them and update the abundance counts of the originals
     std::unordered_map< std::string, size_t > dup_map;
     size_t i = 0;
@@ -121,6 +167,55 @@ std::vector<std::string> get_most_distant_leaf_per_node(
     }
 
     return ret;
+}
+
+void overlap_check( SequenceSet const& set, int const min_overlap, double const overlap_ratio_thresh )
+{
+    std::vector<here::Range> ranges;
+    ranges.reserve( set.size() );
+
+    for (size_t i = 0; i < set.size(); ++i) {
+        auto& seq = set[i].sites();
+
+        // get the valid range
+        ranges.emplace_back( here::get_valid_range( seq ) );
+    }
+
+    std::sort( ranges.begin(), ranges.end(),
+        []( const here::Range& lhs, const here::Range& rhs ){
+            if ( lhs.begin < rhs.begin ) {
+                return true;
+            } else if ( lhs.begin == rhs.begin ) {
+                // tiebreaker needed
+                return lhs.end > rhs.end;
+            } else {
+                return false;
+            }
+        }
+    );
+
+    for (size_t i = 0; i < ranges.size() - 1u; ++i) {
+        auto j = i + 1u;
+        if ( here::overlap(ranges[i], ranges[j]) < min_overlap ) {
+            throw std::runtime_error{"Reads do not sufficiently overlap!"};
+        }
+    }
+
+    // pairwise overlap percentage check
+    std::vector<double> ratios;
+    for (size_t i = 0; i < ranges.size() - 1u; ++i) {
+        for (size_t j = i + 1u; j < ranges.size(); ++j) {
+            ratios.push_back( static_cast<double>(here::overlap(ranges[i], ranges[j]))
+                / std::min(ranges[i].span(), ranges[j].span()) );
+        }
+    }
+
+    double avg = std::accumulate(ratios.begin(), ratios.end(), 0.0) / ratios.size();
+
+    if ( avg < overlap_ratio_thresh ) {
+        throw std::runtime_error{"Average pairwise read overlap below threshold! Average: " + std::to_string(avg)};
+    }
+
 }
 
 // =================================================================================================
@@ -336,8 +431,10 @@ int main( int argc, char** argv )
     writer.abundance_notation( FastaWriter::AbundanceNotation::kUnderscore );
     for( size_t edge_index = 0; edge_index < edge_seqs.size(); ++edge_index ) {
 
+        auto& seqs = edge_seqs[ edge_index ];
+
         // Check: Don't need to write empty sequence files.
-        if( edge_seqs[ edge_index ].size() < min_num ) {
+        if( seqs.size() < min_num ) {
             continue;
         }
 
@@ -347,17 +444,19 @@ int main( int argc, char** argv )
 
         LOG_INFO << "\tEdge: " << edge_num << "    \tSize: " << edge_seqs[ edge_index ].size();
 
+        overlap_check( seqs, 50, 0.5 );
+
         // create edge outdir
         auto edge_dir = output_dir + "edge_" + std::to_string( edge_num ) + "/";
         dir_create( edge_dir );
 
         // Write result
-        writer.to_file( edge_seqs[ edge_index ], edge_dir + "aln.fasta" );
+        writer.to_file( seqs, edge_dir + "aln.fasta" );
 
-        if( edge_seqs[ edge_index ].size() > max_num ) {
+        if( seqs.size() > max_num ) {
             LOG_INFO << "\t\tExceeded max number of sequences, writing stripped file to signal clustering";
-            remove_all_gaps( edge_seqs[ edge_index ] );
-            writer.to_file( edge_seqs[ edge_index ], edge_dir + "stripped.fasta" );
+            remove_all_gaps( seqs );
+            writer.to_file( seqs, edge_dir + "stripped.fasta" );
         }
     }
 
