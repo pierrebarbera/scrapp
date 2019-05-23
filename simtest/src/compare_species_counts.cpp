@@ -221,22 +221,17 @@ void modify_species_counts( Tree& tree )
 
 int main( int argc, char** argv )
 {
-    // Activate logging.
-    // utils::Logging::log_to_stdout();
-    // utils::Logging::details.date = true;
-    // utils::Logging::details.time = true;
-    // utils::Options::get().number_of_threads( 40 );
-    // LOG_BOLD << utils::Options::get().info();
-    // LOG_BOLD;
 
     // Check if the command line contains the right number of arguments.
-    if( argc != 3 ) {
-      LOG_INFO << "Usage: " << argv[0] << " <scrapp_result (newick)> <true_annotation (newick)>";
+    if( argc != 4 ) {
+      LOG_INFO << "Usage: " << argv[0] << " <scrapp_result (newick)> <true_annotation (newick)> <csv_mode>";
       return 1;
     }
 
     std::string scrapp_tree_file( argv[1] );
     std::string true_tree_file( argv[2] );
+    bool const csv_mode = std::atoi( argv[3] );
+    char const sep = ',';
 
     // set up the reader to parse NHX attributes, specifically the ones we want
     auto reader = KeyedAttributeTreeNewickReader();
@@ -269,22 +264,41 @@ int main( int argc, char** argv )
     // scale_all_branch_lengths( mass_trees[1], 1 / length( mass_trees[1] ) );
     // mass_tree_center_masses_on_branches( mass_trees[1] );
 
-    std::cout << "pure KRD: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
+    auto const krd = earth_movers_distance( mass_trees[0], mass_trees[1] );
+
+    if ( csv_mode ) {
+        std::cout << krd << sep;
+    } else {
+        std::cout << "pure KRD: " << krd << std::endl;
+    }
 
     // mass normalization
     mass_tree_normalize_masses( mass_trees[0] );
     mass_tree_normalize_masses( mass_trees[1] );
 
-    std::cout << "normalized KRD: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
+    auto const norm_krd = earth_movers_distance( mass_trees[0], mass_trees[1] );
+    auto const norm_norm_krd = norm_krd / length( mass_trees[0] );
 
-    std::cout   << "normalized KRD, normalized by tree length: "
-                << earth_movers_distance( mass_trees[0], mass_trees[1] ) / length( mass_trees[0] ) << std::endl;
+    if ( csv_mode ) {
+        std::cout   << norm_krd << sep;
+        std::cout   << norm_norm_krd << sep;
+    } else {
+        std::cout   << "normalized KRD: " << norm_krd << std::endl;
+        std::cout   << "normalized KRD, normalized by tree length: "
+                    << norm_norm_krd << std::endl;
+    }
 
     // ignore branch lengths: a more classical hop-based EMD
     mass_tree_transform_to_unit_branch_lengths( mass_trees[0] );
     mass_tree_transform_to_unit_branch_lengths( mass_trees[1] );
 
-    std::cout << "normalized KRD, unit branch lengths: " << earth_movers_distance( mass_trees[0], mass_trees[1] ) << std::endl;
+    auto const norm_unit_krd = earth_movers_distance( mass_trees[0], mass_trees[1] );
+
+    if ( csv_mode ) {
+        std::cout << norm_unit_krd << sep;
+    } else {
+        std::cout << "normalized KRD, unit branch lengths: " << norm_unit_krd << std::endl;
+    }
 
     modify_species_counts( scrapp_tree );
 
@@ -298,7 +312,6 @@ int main( int argc, char** argv )
     std::ofstream hist("hist");
     hist << histacc.build_uniform_ranges_histogram( 10 );
 
-    std::cout << "~~~ per edge errors ~~~" << std::endl;
 
     auto const total_true_count = total_counts( true_tree );
     auto const num_counts = per_edge_errors.size();
@@ -308,36 +321,44 @@ int main( int argc, char** argv )
     auto meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
     auto med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
 
-    std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
-    std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
-    std::cout << "\treldev:\t" << meanstddev.mean / (total_true_count / num_counts) << std::endl;
-    std::cout << "\tsum:\t" << error_sum << std::endl;
-    std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
-    std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
-    std::cout << "\tmedian:\t" << med << std::endl;
-    std::cout << "\tmin:\t" << minmax.min << std::endl;
-    std::cout << "\tmax:\t" << minmax.max << std::endl;
-
+    if ( csv_mode ) {
+        std::cout << error_sum << sep << meanstddev.mean << sep << med << sep;
+    } else {
+        std::cout << "~~~ per edge errors ~~~" << std::endl;
+        std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
+        std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
+        std::cout << "\treldev:\t" << meanstddev.mean / (total_true_count / num_counts) << std::endl;
+        std::cout << "\tsum:\t" << error_sum << std::endl;
+        std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
+        std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
+        std::cout << "\tmedian:\t" << med << std::endl;
+        std::cout << "\tmin:\t" << minmax.min << std::endl;
+        std::cout << "\tmax:\t" << minmax.max << std::endl;
+    }
 
     per_edge_func rel_diff_func = [](double l, double r){return std::abs((l - r)/r);};
     per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree, rel_diff_func, false);
 
-    std::cout << "~~~ using relative error ~~~" << std::endl;
 
     error_sum = std::accumulate( std::begin(per_edge_errors), std::end(per_edge_errors), 0.0);
     minmax = minimum_maximum( std::begin(per_edge_errors), std::end(per_edge_errors) );
     meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
     med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
 
-    std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
-    std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
-    std::cout << "\treldev:\t" << meanstddev.mean / (1.0 / num_counts) << std::endl;
-    std::cout << "\tsum:\t" << error_sum << std::endl;
-    std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
-    std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
-    std::cout << "\tmedian:\t" << med << std::endl;
-    std::cout << "\tmin:\t" << minmax.min << std::endl;
-    std::cout << "\tmax:\t" << minmax.max << std::endl;
+    if ( csv_mode ) {
+        std::cout << error_sum << sep << meanstddev.mean << sep << med << sep;
+    } else {
+        std::cout << "~~~ using relative error ~~~" << std::endl;
+        std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
+        std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
+        std::cout << "\treldev:\t" << meanstddev.mean / (1.0 / num_counts) << std::endl;
+        std::cout << "\tsum:\t" << error_sum << std::endl;
+        std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
+        std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
+        std::cout << "\tmedian:\t" << med << std::endl;
+        std::cout << "\tmin:\t" << minmax.min << std::endl;
+        std::cout << "\tmax:\t" << minmax.max << std::endl;
+    }
 
 
     // normalize the species counts per tree
@@ -346,23 +367,30 @@ int main( int argc, char** argv )
 
     per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree, abs_diff_func );
 
-    std::cout << "~~~ after normalization ~~~" << std::endl;
 
     error_sum = std::accumulate( std::begin(per_edge_errors), std::end(per_edge_errors), 0.0);
     minmax = minimum_maximum( std::begin(per_edge_errors), std::end(per_edge_errors) );
     meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
     med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
 
-    std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
-    std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
-    std::cout << "\treldev:\t" << meanstddev.mean / (1.0 / num_counts) << std::endl;
-    std::cout << "\tsum:\t" << error_sum << std::endl;
-    std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
-    std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
-    std::cout << "\tmedian:\t" << med << std::endl;
-    std::cout << "\tmin:\t" << minmax.min << std::endl;
-    std::cout << "\tmax:\t" << minmax.max << std::endl;
+    if ( csv_mode ) {
+        std::cout << error_sum << sep << meanstddev.mean << sep << med;
+    } else {
+        std::cout << "~~~ after normalization ~~~" << std::endl;
+        std::cout << "\ttottru:\t" << total_counts( true_tree ) << std::endl;
+        std::cout << "\ttotinf:\t" << total_counts( scrapp_tree ) << std::endl;
+        std::cout << "\treldev:\t" << meanstddev.mean / (1.0 / num_counts) << std::endl;
+        std::cout << "\tsum:\t" << error_sum << std::endl;
+        std::cout << "\tmean:\t" << meanstddev.mean << std::endl;
+        std::cout << "\tstddev:\t" << meanstddev.stddev << std::endl;
+        std::cout << "\tmedian:\t" << med << std::endl;
+        std::cout << "\tmin:\t" << minmax.min << std::endl;
+        std::cout << "\tmax:\t" << minmax.max << std::endl;
+    }
 
+    if ( csv_mode ) {
+        std::cout << std::endl;
+    }
 
     return 0;
 }
