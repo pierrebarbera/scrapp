@@ -51,7 +51,7 @@ def command_line_args_parser():
         '--out-dir',
         help="Output directory.",
         action='store',
-        dest='outdir',
+        dest='out_dir',
         type=str,
         default="."
     )
@@ -127,6 +127,8 @@ def command_line_args_parser():
         type=unit_interval,
         default=0.2
     )
+
+    return parser
 
 def command_line_args_postprocessor( args ):
     # Make sure that all paths are fully resolved and dirs have no trailing slashes.

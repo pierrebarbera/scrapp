@@ -1,18 +1,12 @@
 #!/bin/bash
-DATE=`date '+%Y-%m-%d-%H:%M'`
+[ -z "$SCRAPP_SIM_CURDIR" ] && echo "SCRAPP_SIM_CURDIR empty! Aborting" && exit
 
-BASE=$(cd `dirname "${BASH_SOURCE[0]}"`/.. && pwd)
-REF=${BASE}/msa/reference.fasta
-QRY=${BASE}/msa/query.fasta
-TREE=${BASE}/tree/reference.newick
+REF=${SCRAPP_SIM_CURDIR}/msa/reference.fasta
+QRY=${SCRAPP_SIM_CURDIR}/msa/query.fasta
+TREE=${SCRAPP_SIM_CURDIR}/tree/reference.newick
 
-OUT=${BASE}/tree
-
-echo "start at `date`"
+OUT=${SCRAPP_SIM_CURDIR}/tree
 
 cd $OUT
-rm eval.raxml.*
-raxml-ng --evaluate --tree ${TREE} --msa ${REF} --model GTR+G --prefix ${OUT}/eval "$@"
+raxml-ng --evaluate --tree ${TREE} --msa ${REF} --model GTR+G --prefix ${OUT}/eval --blmin 1e-6 --blmax 5000 --redo "$@"
 cd -
-
-echo "end at `date`"

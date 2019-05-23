@@ -24,12 +24,12 @@ import os
 import sys
 import json
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
+if len(sys.argv) != 2:
+  raise Exception("Usage: {} <run-dir>", sys.sys.argv[0])
 
-base_dir = os.path.realpath(os.path.join(script_dir, "../"))
+base_dir = sys.argv[1]
 
 out_dir=os.path.join(base_dir, "msa")
-
 
 
 #### read ref and qry maps
