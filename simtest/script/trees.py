@@ -20,6 +20,7 @@
 # Exelixis Lab, Heidelberg Institute for Theoretical Studies
 # Schloss-Wolfsbrunnenweg 35, D-69118 Heidelberg, Germany
 
+import argparse
 import os
 import sys
 import json
@@ -28,6 +29,122 @@ from ete3 import Tree
 from collections import defaultdict
 import pprint as pp
 import math
+
+def command_line_args_parser():
+    """
+    Return an instance of argparse that can be used to process command line arguemnts.
+    """
+
+    def unit_interval(x):
+        x = float(x)
+        if x < 0.0 or x > 1.0:
+            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
+        return x
+
+    # Init an args parser, with a group of required named arguments. It is just nicer to use named
+    # arguments than having to rely on their order (i.e., use positional arguments instead).
+    parser = argparse.ArgumentParser(
+        description="Script that uses msprime to generate trees to be used with the scrapp sim stack"
+    )
+
+    parser.add_argument(
+        '--out-dir',
+        help="Output directory.",
+        action='store',
+        dest='outdir',
+        type=str,
+        default="."
+    )
+
+    # Add optional args.
+    parser.add_argument(
+        '--seed',
+        help="Seed for the RNG.",
+        action='store',
+        dest='seed',
+        type=int
+    )
+
+    parser.add_argument(
+        '--mutation-rate',
+        help="Mutation rate in mutations per generation per base.",
+        action='store',
+        dest='mut_rate',
+        type=float,
+        default=1e-8
+    )
+
+    parser.add_argument(
+        '-n','--num-pops', '--species',
+        help="Number of starting populations (species).",
+        action='store',
+        dest='num_pops',
+        type=int,
+        default=30
+    )
+
+    parser.add_argument(
+        '--sample-size',
+        help="Number of individuals per population.",
+        action='store',
+        dest='sample_size',
+        type=int,
+        default=10
+    )
+
+    parser.add_argument(
+        '--population-size',
+        help="Total population size (Ne).",
+        action='store',
+        dest='pop_size',
+        type=float,
+        default=1e6
+    )
+
+    parser.add_argument(
+        '--migration-rate',
+        help="Migration rate between populations. Warning: strong influence on species count.",
+        action='store',
+        dest='mig_rate',
+        type=float,
+        default=1e-11
+    )
+
+    parser.add_argument(
+        '--seq-length',
+        help="Hypothetical length of the underlying sequence/MSA.",
+        action='store',
+        dest='seq_length',
+        type=float,
+        default=1000
+    )
+
+    parser.add_argument(
+        '--prune',
+        help="How many (as a fraction of total count) populations/species should be pruned from the tree to emulate missing data.",
+        action='store',
+        dest='prune_fract',
+        type=unit_interval,
+        default=0.2
+    )
+
+def command_line_args_postprocessor( args ):
+    # Make sure that all paths are fully resolved and dirs have no trailing slashes.
+    # args.jplace_file = os.path.abspath( os.path.realpath( args.jplace_file ))
+
+    return args
+
+def command_line_args():
+    """
+    Return a parsed and processed list of the command line arguments that were provided when
+    running this script.
+    """
+
+    # Parse the given arguments from the command line, post-process them, return the result.
+    parser = command_line_args_parser()
+    args = parser.parse_args()
+    args = command_line_args_postprocessor( args )
+    return args
 
 def path_between(A, B):
     # ETE3 doesn't have a built in path function (AFAIK), so instead
@@ -75,28 +192,31 @@ def rand_names(n=1):
     rand_nums = rd.choice(len(words), n, replace=False)
     return {i:words[rand_nums[i]] for i in range(len(rand_nums))}
 
-if len(sys.argv) < 3 or len(sys.argv) > 4:
-    raise Exception("Usage: {} <num_taxa> <out-dir> [seed]", sys.argv[0])
 
-out_dir = sys.argv[2]
+# ===========================
+#  MAIN FUNCTION
+# ===========================
+
+args = command_line_args()
+
+out_dir = args.out_dir
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-if len(sys.argv) == 4:
-    SEED=int(sys.argv[3])
+if args.seed:
+    SEED=int(args.seed)
 else:
     SEED=None
 
-n=int(sys.argv[1])
-MIGRATION_RATE=1e-11
-POP_SIZE=1e6
-SAMPLE_SIZE=100
-MU=1e-8
-SEQ_LENGTH=1000
-PRUNE_FRACT=0.2
-
 rd.seed(SEED)
 
+n=args.num_pops
+MIGRATION_RATE=args.mig_rate
+POP_SIZE=args.pop_size
+SAMPLE_SIZE=args.sample_size
+MU=args.mut_rate
+SEQ_LENGTH=args.seq_length
+PRUNE_FRACT=args.prune_fract
 
 #### simulate the tree
 import msprime
