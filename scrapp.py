@@ -494,7 +494,7 @@ if __name__ == "__main__":
         model_path = os.path.join(tmp_out_dir, "raxml.model" )
 
         with open( model_path, "w+") as f:
-            f.write("--model {}".format(model))
+            f.write("--blopt nr_safe --force model_lh_impr --model {}".format(model))
 
 
         if ( args.parallel == "threads" ):
