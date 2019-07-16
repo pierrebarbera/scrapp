@@ -23,11 +23,11 @@ class TEA:
   # Member Variables
   # ==========================================
 
-  _version = "0.0.1"
+  _version = "0.1.0"
   _meta = {"invocation":""}
 
   _tree = "" #TODO internally as an actual tree? convert on write?
-  _samples = []
+  _views = {}
 
   # ==========================================
   # Constructor
@@ -63,71 +63,47 @@ class TEA:
   def get_tree(self):
     return self._tree
 
-  # def sample(self, name):
-  #   # find sample with specified name
-
-  #   # return it
-
   # ==========================================
   # Modifiers
   # ==========================================
 
-  def add_annotation(self, sample_name, edge_id, annotations):
+  def add_annotation(self, view_name, edge_id, annotations):
     """ adds an arbitrary number of key-value pairs ("annotations")
         belonging to an edge in the tree ("edge_id")
-        to a given named sample ("sample_name").
+        to a given named sample ("view_name").
     """
-
-    # look up sample, make one if it's not there
-    found_sample = False
     edge_id = int(edge_id)
 
-    for s in self._samples:
-      if s["name"] == sample_name:
-        found_sample = True
-        edge_found = False
-        for a in s["annotation"]:
-          if a["edge"] == edge_id:
-            # TODO: reconsider: should we fail here?
-            edge_found = True
-            a.update( annotations )
-        if not edge_found:
-          # annotations["edge"] = edge_id
-          s["annotation"].append(
-            OrderedDict( [("edge", edge_id)] + sorted(annotations.items()) )
-          )
+    # look up sample, make one if it's not there
+    if view_name in self._views.keys():
+      if edge_id in self._views[view_name]["annotation"]:
+        self._views[ view_name ][ "annotation" ][ edge_id ].update( annotations )
+      else:
+        self._views[ view_name ][ "annotation" ][ edge_id ] = OrderedDict( sorted(annotations.items()) )
+    else:
+      self._views[view_name] = {"annotation":
+                                  {
+                                    edge_id: OrderedDict( sorted(annotations.items()) )
+                                  }
+                                }
 
-    if not found_sample:
-      annotations["edge"] = edge_id
-      self._samples.append( { "name": sample_name,
-                              "annotation": [
-                                OrderedDict( [("edge", edge_id)] + sorted(annotations.items()) )
-                              ]})
-
-  def annotated_tree( self, sample_name, annotation_key ):
+  def annotated_tree( self, view_name, annotation_key ):
     """ returns an edge-annotated tree, according to the specified annotation_key
     """
 
     # first build a table of annotations that is more easily accessible
     annotation_lookup = dict()
-    found_sample = False
 
-    for sample in self._samples:
-      if sample["name"] == sample_name:
-        found_sample = True
-        for annotation in sample["annotation"]:
-          if "edge" in annotation:
-            edge_id = annotation["edge"]
-          else:
-            raise RuntimeError( "malformed annotation, no 'edge' key!" )
+    if not view_name in self._views.keys():
+      raise RuntimeError( "View with name '{}' not found!".format( view_name ) )
 
-          if annotation_key in annotation:
-            annotation_lookup[ edge_id ] = annotation[ annotation_key ]
-          else:
-            raise RuntimeError( "Annotation key '{}' not found!".format(annotation_key) )
+    view = self._views[ view_name ]
 
-    if not found_sample:
-      raise RuntimeError( "Sample with name '{}' not found!".format(sample_name) )
+    for edge_id, annotations in view["annotation"].iteritems():
+      if annotation_key in annotations.keys():
+        annotation_lookup[ edge_id ] = annotations[ annotation_key ]
+      # else:
+      #   raise RuntimeError( "Annotation key '{}' not found for edge '{}'!".format( annotation_key, edge_id ) )
 
     # now parse over the tree string, subsituting {<edge_id>}
     # with [<annotation>] where edge_id has an annotation (erase otherwise)
@@ -136,7 +112,7 @@ class TEA:
       edge_id = int(tree_array[i])
       if edge_id in annotation_lookup:
         # replace with annotation
-        tree_array[i] = "[&&NHX:species_count={}]".format( annotation_lookup[ edge_id ] )
+        tree_array[i] = "[&&NHX:{}={}]".format( annotation_key, annotation_lookup[ edge_id ] )
       else:
         # erase
         tree_array[i] = ""
@@ -159,7 +135,7 @@ class TEAJSONEncoder(json.JSONEncoder):
     if isinstance(o, TEA):
       return OrderedDict([
         ("tree", o._tree),
-        ("samples", o._samples),
+        ("views", o._views),
         ("meta", o._meta),
         ("version", o._version)
       ])
