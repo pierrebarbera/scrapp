@@ -1,6 +1,6 @@
 /*
     Genesis - A toolkit for working with phylogenetic data.
-    Copyright (C) 2014-2018 Lucas Czech, Pierre Barbera
+    Copyright (C) 2014-2019 Pierre Barbera and Lucas Czech
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -218,6 +218,173 @@ void overlap_check( SequenceSet const& set, int const min_overlap, double const 
 
 }
 
+using Pquery_set = std::vector< Pquery const* >;
+using Point = std::vector<double>;
+
+class sortable_pquery
+{
+public:
+    sortable_pquery( Pquery const* ptr ) : pq_ptr( ptr ) {};
+    ~sortable_pquery() = default;
+    Pquery const* pq_ptr = nullptr;
+    size_t sort_key = 0;
+    bool operator < ( sortable_pquery const& other ) const {
+        return sort_key < other.sort_key;
+    }
+    bool operator==( sortable_pquery const& other ) const {
+        return pq_ptr == other.pq_ptr;
+    }
+
+    operator Pquery const* () const {
+        return pq_ptr;
+    }
+};
+
+PqueryPlacement const& best_placement( Pquery const& pq ) {
+    assert( pq.placement_size() != 0 );
+
+    PqueryPlacement const * best = &pq.placement_at(0);
+    for( auto const& p : pq.placements() ) {
+        if( best->like_weight_ratio < p.like_weight_ratio ) {
+            best = &p;
+        }
+    }
+
+    return *best;
+}
+
+double distance( Point const& lhs, Point const& rhs, size_t const dimensions=2 )
+{
+    // Simple euclidean distance
+    double sum = 0.0;
+    for( size_t d = 0; d < dimensions; ++d ) {
+        auto const diff = lhs[d] - rhs[d];
+        sum += diff * diff;
+    }
+    return std::sqrt( sum );
+}
+
+Sequence const& get_sequence( SequenceSet const& haystack, std::string const& needle )
+{
+    auto iter = std::find_if(std::begin(haystack), std::end(haystack),
+                [&needle](Sequence const& s){
+                    return s.label() == needle;
+    });
+
+    if( iter == std::end(haystack) ) {
+        throw std::invalid_argument{
+            std::string("Sequence of name '") + needle +
+            "' doesn't have a sequence in the input fasta file."
+        };
+    }
+
+    return *iter;
+}
+
+std::string const& name( Pquery const* pq_ptr )
+{
+    return pq_ptr->name_at( 0 ).name;
+}
+
+size_t count_informative_sites( Sequence const& seq )
+{
+    auto relevant_chars = nucleic_acid_codes_plain() + nucleic_acid_codes_degenerated();
+
+    // make a counter for each value of char
+    std::vector<size_t> counters( std::numeric_limits< char >::max() + 1, 0 );
+
+    for( auto const& c : seq ) {
+        counters[ c ]++;
+    }
+
+    // sum up only those chars we are interested int
+    size_t counter = 0;
+    for( auto const& c : relevant_chars ) {
+        counter += counters[ c ];
+    }
+
+    return counter;
+}
+
+
+Pquery_set placement_pseudokmedoids( Pquery_set const& set, SequenceSet const& msa, size_t const k, size_t const x )
+{
+    assert( k >= 2 );
+
+    // build a vector that EuclidianKmeans can work with
+    // aka translating placements into the placement space! hell yes
+
+    std::vector<Point> placement_coordinates;
+    placement_coordinates.reserve( set.size() );
+
+    for( auto pq : set ) {
+        // get best placement
+        auto const& p = best_placement( *pq );
+
+        // add this pquery's placement coordinates to thed dataset
+        placement_coordinates.push_back( { p.pendant_length, p.proximal_length } );
+    }
+
+    // do the kmeans
+    auto clustering = EuclideanKmeans( 2 );
+    clustering.run( placement_coordinates, k );
+    auto centroids = clustering.centroids();
+    auto const& point_id_to_cluster = clustering.assignments();
+
+    // make a set of clusters
+    assert( point_id_to_cluster.size() == set.size() );
+    std::vector<std::vector< sortable_pquery >> clusters( k );
+    for( size_t point_id = 0; point_id < point_id_to_cluster.size(); ++point_id ) {
+        auto const cluster_id = point_id_to_cluster[ point_id ];
+        clusters[ cluster_id ].push_back( set[ point_id ] );
+    }
+
+    // find the closest medoid to every centroid
+    // assert( cluster_reps.size() == centroids.size() );
+    assert( k == centroids.size() );
+
+    // pick the top x sequences per cluster as the cluster representatives
+    for( auto& cluster : clusters ) {
+        // ensure x is strictly smaller. in all other cases, keep all representatives
+        if(  x >= cluster.size() ) {
+            continue;
+        }
+
+        for( auto& spq : cluster ) {
+            // find that sequence in the query msa
+            auto const& seq = get_sequence( msa, name( spq.pq_ptr ) );
+
+            // set this pqueries sort key: the number of informative sites
+            spq.sort_key = count_informative_sites( seq );
+        }
+
+        // sort the datapoints of this cluster (ascending!)
+        std::sort( std::begin(cluster), std::end(cluster) );
+
+        // remove all but the best x elements from the container
+        auto remove_iter = std::end(cluster);
+        std::advance( remove_iter, -x );
+        cluster.erase( std::begin(cluster), remove_iter );
+    }
+
+    Pquery_set cluster_reps;
+    cluster_reps.reserve( k * x );
+    for( auto const& cluster : clusters ) {
+        cluster_reps.insert( std::end(cluster_reps), std::begin(cluster), std::end(cluster) );
+    }
+
+
+    // check that cluster_reps are unique
+    for( auto pq_ptr : cluster_reps ) {
+        auto num = std::count( std::begin(cluster_reps), std::end(cluster_reps), pq_ptr );
+        if( num > 1 ) {
+            std::cout << "ERR: Representative '" << name( pq_ptr ) << "' occured " << num << " times!" << std::endl;
+            throw std::runtime_error{"Abort, see above"};
+        }
+    }
+
+    return cluster_reps;
+}
 // =================================================================================================
 //     Main
 // =================================================================================================
@@ -300,7 +467,7 @@ int main( int argc, char** argv )
     }
 
     // Get the pqueries per edge.
-    auto const pqrs_per_edge = pqueries_per_edge( sample, true );
+    auto pqrs_per_edge = pqueries_per_edge( sample, true );
     assert( pqrs_per_edge.size() == sample.tree().edge_count() );
 
     // Read in sequences. Currently, we read the full file, because our Phylip reader does not yet
@@ -310,20 +477,28 @@ int main( int argc, char** argv )
     SequenceSet seqs = read_any_seqfile( query_alignment );
 
     // Input check.
-    if( ! is_alignment( seqs )) {
+    if( not is_alignment( seqs )) {
         LOG_ERR << "Alignment file contains sequences of different length, i.e., it is not an alignment.";
         return 1;
     }
 
     // dereplicate
-    LOG_INFO << "Dereplicating sequences.";
-    merge_duplicates( seqs );
+    // LOG_INFO << "Dereplicating sequences.";
+    // merge_duplicates( seqs );
 
     // after dereplication we add the ref seqs, if specified
+    SequenceSet ref_seqs;
     if ( include_outgroup ) {
-        auto ref_seqs = read_any_seqfile( reference_alignment );
-        for ( auto& s : ref_seqs ) {
-            seqs.add( s );
+        ref_seqs = read_any_seqfile( reference_alignment );
+        if ( ref_seqs.empty() ) {
+            LOG_ERR << "Reference alignment file was empty.";
+            return 1;
+        } else if( not is_alignment( ref_seqs )) {
+            LOG_ERR << "Reference alignment file contains sequences of different length, i.e., it is not an alignment.";
+            return 1;
+        }  else if( seqs.at( 0 ).length() != ref_seqs.at( 0 ).length() ) {
+            LOG_ERR << "Reference alignment and Query alignment have differing widths.";
+            return 1;
         }
     }
 
@@ -365,7 +540,14 @@ int main( int argc, char** argv )
     auto edge_seqs = std::vector<SequenceSet>( sample.tree().edge_count() );
     auto finished_labels = std::unordered_map< std::string, size_t >();
     for( size_t edge_index = 0; edge_index < pqrs_per_edge.size(); ++edge_index ) {
-        auto const& edge_pqueries = pqrs_per_edge[ edge_index ];
+        auto& edge_pqueries = pqrs_per_edge[ edge_index ];
+
+        // IF there are too many pqueries on this edge, perform clustering
+        if( edge_pqueries.size() > max_num ) {
+            size_t const k = max_num/10;
+            size_t const x = 10;
+            edge_pqueries = placement_pseudokmedoids( edge_pqueries, seqs, k, x );
+        }
 
         // Get all names of the pqueries of the current edge.
         for( auto pqry_ptr : edge_pqueries ) {
@@ -402,9 +584,7 @@ int main( int argc, char** argv )
             auto const& edge = sample.tree().edge_at( edge_index );
             auto const primary_node_id = edge.primary_node().index();
 
-            auto seq_id = seq_label_map[ most_distant_taxon[ primary_node_id ] ];
-
-            Sequence seq_cpy = seqs[ seq_id ];
+            Sequence seq_cpy = get_sequence( ref_seqs, most_distant_taxon[ primary_node_id ] );
             seq_cpy.label( "__SCRAPP_OUTGROUP__" + seq_cpy.label() );
 
             edge_seqs[ edge_index ].add( seq_cpy );
@@ -453,11 +633,6 @@ int main( int argc, char** argv )
         // Write result
         writer.to_file( seqs, edge_dir + "aln.fasta" );
 
-        if( seqs.size() > max_num ) {
-            LOG_INFO << "\t\tExceeded max number of sequences, writing stripped file to signal clustering";
-            remove_all_gaps( seqs );
-            writer.to_file( seqs, edge_dir + "stripped.fasta" );
-        }
     }
 
     LOG_INFO << "Finished";

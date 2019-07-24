@@ -21,10 +21,8 @@ prog_paths = {
     "alignment_splitter" : [basedir + "/genesis/bin/apps/"],
     "get_rooting"        : [basedir + "/genesis/bin/apps/"],
     "phy2fasta"          : [basedir + "/genesis/bin/apps/"],
-    "otu_map_back"       : [basedir + "/genesis/bin/apps/"],
     "msa_bootstrap"      : [basedir + "/genesis/bin/apps/"],
     "mptp"               : [basedir + "/mptp/bin/"],
-    "swarm"              : [basedir + "/swarm/bin/"],
     "pargenes"           : [basedir + "/ParGenes/is_installed_"],
     "raxml-ng"           : [basedir + "/ParGenes/raxml-ng/bin/"]
 }
@@ -148,14 +146,6 @@ def try_resolve_phy2fasta(machine = get_platform()):
     # make update on genesis
     return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
 
-def try_resolve_otu_map_back(machine = get_platform()):
-    genesisdir = os.path.join(basedir, "genesis")
-    # ensure the symlink exists
-    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/otu_map_back.cpp"))], stdout=FNULL)
-
-    # make update on genesis
-    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
-
 def try_resolve_msa_bootstrap(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
     # ensure the symlink exists
@@ -171,11 +161,6 @@ def try_resolve_pargenes(machine = get_platform()):
   if (0 == res):
     sub.call(['touch', os.path.join(pargenesdir, "is_installed_pargenes")])
   return res
-
-def try_resolve_swarm(machine = get_platform()):
-  swarmdir = os.path.join(basedir, "swarm/src")
-  # print(swarmdir)
-  return sub.call(["make", "-C", swarmdir], stdout=FNULL)
 
 def try_resolve_get_rooting(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
@@ -197,14 +182,10 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_get_rooting( machine )
     elif name == "phy2fasta":
         return try_resolve_phy2fasta( machine )
-    elif name == "otu_map_back":
-        return try_resolve_otu_map_back( machine )
     elif name == "msa_bootstrap":
         return try_resolve_msa_bootstrap( machine )
     elif name == "pargenes":
         return try_resolve_pargenes( machine )
-    elif name == "swarm":
-        return try_resolve_swarm( machine )
     else:
         raise RuntimeError( "No such subprogram name: " + name )
 
@@ -235,5 +216,3 @@ def subprograms_exist( paths ):
             raise RuntimeError(
                 "Subprogram '" + name + "' not found at '" + cmd + "'. Please run setup first."
             )
-
-

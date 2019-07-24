@@ -386,71 +386,6 @@ if __name__ == "__main__":
         edge_list = edge_list[:args.test_size]
 
     # -------------------------------------------------------------------------
-    #     OTU Clustering of queries
-    # -------------------------------------------------------------------------
-    @vectorize_parallel( method = pardec_method, num_procs = 1 )
-    def run_swarm_processes( edge_dir, work_dir ):
-        swarm_out_dir = os.path.join( args.work_dir, edge_dir, "swarm")
-        swarm_chk_file = os.path.join( swarm_out_dir, "swarm_cmd.txt" )
-        swarm_out_file = os.path.join( swarm_out_dir, "swarm_log.txt" )
-
-        sequences = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
-        stripped_sequences = os.path.join( args.work_dir, edge_dir, "stripped.fasta" )
-
-        # only proceed if stripped.fasta exists
-        if (not os.path.isfile(stripped_sequences)):
-            return 0
-
-        otu_path = os.path.join( swarm_out_dir, "otus.fasta")
-
-        swarm_cmd = [
-            paths[ "swarm" ],
-            "--threads", str(num_threads),
-            "--fastidious",
-            "-w", otu_path,
-            stripped_sequences
-        ]
-
-        if ( not call_with_check_file(
-            swarm_cmd,
-            swarm_chk_file,
-            out_file_path=swarm_out_file,
-            err_file_path=swarm_out_file,
-            verbose=args.verbose
-        ) ):
-            raise RuntimeError( "swarm has failed!" )
-
-        # --------------------------------------------------
-        #   transform the result otus back to aligned ones
-        # --------------------------------------------------
-        map_back_out_dir = swarm_out_dir
-        map_back_chk_file = os.path.join( map_back_out_dir, "map_back_cmd.txt" )
-        map_back_out_file = os.path.join( map_back_out_dir, "map_back_log.txt" )
-
-        map_back_cmd = [
-            paths[ "otu_map_back" ],
-            otu_path,
-            sequences,
-            os.path.join( args.work_dir, edge_dir, "aligned_otus.fasta")
-        ]
-
-        if ( not call_with_check_file(
-            map_back_cmd,
-            map_back_chk_file,
-            out_file_path=map_back_out_file,
-            err_file_path=map_back_out_file,
-            verbose=args.verbose
-        ) ):
-            raise RuntimeError( "map_back has failed!" )
-
-        return 0
-
-    runtime = time.time()
-    run_swarm_processes( edge_list, args.work_dir )
-    runtime = time.time() - runtime
-    runtimes.append({"name":"swarm", "time":runtime})
-
-    # -------------------------------------------------------------------------
     #     RAxML Tree Inferrence
     # -------------------------------------------------------------------------
 
@@ -464,16 +399,14 @@ if __name__ == "__main__":
 
         # prepare for pargenes by copying, renaming msa files, into a temp dir
         import shutil
-        tmp_dir = os.path.join( args.work_dir, "tmp" )
-        mkdirp( tmp_dir )
+        pargenes_msas_dir = os.path.join( args.work_dir, "pargenes_in" )
+        mkdirp( pargenes_msas_dir )
         for edge_dir in edge_list:
             msa = os.path.join( args.work_dir, edge_dir, "aligned_otus.fasta" )
             if (not os.path.isfile( msa )):
-                if (os.path.isfile( os.path.join(args.work_dir, edge_dir, "stripped.fasta") )):
-                    raise RuntimeError( "stripped.fasta exists, but there is no otu file, something must have gone wrong!" )
                 msa = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
             edge_string = edge_dir.split("/")[-2]
-            shutil.copyfile(msa, os.path.join(tmp_dir, edge_string + ".fasta"))
+            shutil.copyfile(msa, os.path.join(pargenes_msas_dir, edge_string + ".fasta"))
 
         # call pargenes
         pargenes_chk_file = os.path.join( args.work_dir, "pargenes_cmd.txt" )
@@ -481,8 +414,8 @@ if __name__ == "__main__":
 
         pargenes = os.path.join(base_dir_, "deps/ParGenes/pargenes/pargenes.py")
 
-        tmp_out_dir = os.path.join( args.work_dir, "tmp_out" )
-        os.mkdir(tmp_out_dir)
+        pargenes_out = os.path.join( args.work_dir, "pargenes_out" )
+        os.mkdir(pargenes_out)
 
         if (args.protein):
             datatype = 'aa'
@@ -491,7 +424,7 @@ if __name__ == "__main__":
             datatype = 'nt'
             model = "GTR+G"
 
-        model_path = os.path.join(tmp_out_dir, "raxml.model" )
+        model_path = os.path.join(pargenes_out, "raxml.model" )
 
         with open( model_path, "w+") as f:
             f.write("--blopt nr_safe --force model_lh_impr --model {}".format(model))
@@ -502,9 +435,9 @@ if __name__ == "__main__":
         elif ( args.parallel == "mpi"):
             parallel = "split"
 
-        pargenes_cmd = ["python", pargenes,
+        pargenes_cmd = ["python2", pargenes,
             "--alignments-dir", tmp_dir,
-            "--output-dir", tmp_out_dir,
+            "--output-dir", pargenes_out,
             "--datatype", datatype,
             "--cores", str(num_threads),
             "--scheduler", parallel,
@@ -567,7 +500,11 @@ if __name__ == "__main__":
         trees_eval_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
         trees_eval_out_file = os.path.join( trees_eval_out_dir, "bs_reps_log.txt" )
 
-        best_tree = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )[0]
+        best_trees = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
+
+        if not best_trees:
+            raise Exception("No trees were found in `" + os.path.join( args.work_dir, edge_dir, "search") + "` during run_bootstraps_processes" )
+
         bsrep_msas = glob.glob( os.path.join( bs_reps_out_dir, "replicate_*.fasta" ) )
 
         for rep_msa in bsrep_msas:
@@ -582,7 +519,7 @@ if __name__ == "__main__":
                 paths[ "raxml-ng" ],
                 "--evaluate",
                 "--msa", rep_msa,
-                "--tree", best_tree,
+                "--tree", best_trees[0],
                 "--prefix", trees_eval_out_dir + "/" + name,
                 "--model", model,
                 "--threads", "1"
@@ -613,11 +550,14 @@ if __name__ == "__main__":
         rootings_chk_file = os.path.join( rootings_out_dir, "rootings_cmd.txt" )
         rootings_out_file = os.path.join( rootings_out_dir, "rootings_log.txt" )
 
-        best_tree = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )[0]
+        best_trees = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
+
+        if not best_trees:
+            raise Exception("No trees were found in `" + os.path.join( args.work_dir, edge_dir, "search") + "` during get_rooting" )
 
         rootings_cmd = [
             paths[ "get_rooting" ],
-            best_tree,
+            best_trees[0],
             rootings_out_dir,
             "all" if not args.reference_alignment else "outgroup"
         ]
