@@ -436,7 +436,7 @@ if __name__ == "__main__":
             parallel = "split"
 
         pargenes_cmd = ["python2", pargenes,
-            "--alignments-dir", tmp_dir,
+            "--alignments-dir", pargenes_msas_dir,
             "--output-dir", pargenes_out,
             "--datatype", datatype,
             "--cores", str(num_threads),
@@ -464,7 +464,7 @@ if __name__ == "__main__":
         for edge_dir in edge_list:
             pargenes_out_dir = os.path.join( args.work_dir, edge_dir, "search/" )
             edge_string = edge_dir.split("/")[-2]
-            res = os.path.join( tmp_out_dir, "mlsearch_run/results", edge_string + "_fasta" )
+            res = os.path.join( pargenes_out, "mlsearch_run/results", edge_string + "_fasta" )
             for filename in glob.glob(os.path.join(res, "*.*")):
                 # print "copy ", filename, " to ", pargenes_out_dir
                 mkdirp( pargenes_out_dir )

@@ -12,3 +12,10 @@ mkdir -p ${OUT}
 rm ${OUT}/* 2> /dev/null
 
 ${BASE}/script/real_tree_prune.py --out-dir ${OUT} --msa ${MSA} --tree ${TREE} "$@"
+
+# move result to appropriate folder
+mkdir -p ${SCRAPP_SIM_CURDIR}/msa
+REF=${SCRAPP_SIM_CURDIR}/msa/reference.fasta
+QRY=${SCRAPP_SIM_CURDIR}/msa/query.fasta
+mv ${OUT}/reference.fasta ${REF}
+mv ${OUT}/query.fasta ${QRY}

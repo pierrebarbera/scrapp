@@ -34,7 +34,7 @@ for scrapp_mode in rootings bootstrap outgroup; do
 
         SCRAPP_SIM_CURDIR=${BASE}/runs/empirical/scrapp_mode_${scrapp_mode}/query_fract_${query_fract}/rarify_fract_${rarify_fract}/iter_${i}
         export SCRAPP_SIM_CURDIR
-        rm -rf ${SCRAPP_SIM_CURDIR}/* 2> /dev/null
+        rm -r ${SCRAPP_SIM_CURDIR}/* 2> /dev/null
 
         printf "${run},${scrapp_mode},${query_fract},${query_fract}," >> ${RESULT_CSV}
 
@@ -78,7 +78,6 @@ for scrapp_mode in rootings bootstrap outgroup; do
         # echo "  statistic done!"
 
         let run+=1
-
       done # runs
     done # rarify_fract
   done # query_fract
