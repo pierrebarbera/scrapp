@@ -388,9 +388,9 @@ int main( int argc, char** argv )
         std::cout << "\tmax:\t" << minmax.max << std::endl;
     }
 
-    if ( csv_mode ) {
-        std::cout << std::endl;
-    }
+    // if ( csv_mode ) {
+    //     std::cout << std::endl;
+    // }
 
     return 0;
 }

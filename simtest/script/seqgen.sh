@@ -11,6 +11,6 @@ rm ${OUT}/* 2> /dev/null
 
 cd ${OUT}
 
-seq-gen -q -l 1000 -m GTR -g 4 -a 1.0 -or "$@" < ${TREE} > full_TRUE.phy
+seq-gen -q -m GTR -g 4 -a 1.0 -or "$@" < ${TREE} > full_TRUE.phy
 
 ${BASE}/script/split_msa.py ${SCRAPP_SIM_CURDIR}

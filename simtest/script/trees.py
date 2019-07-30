@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # Copyright (C)2019 Pierre Barbera
 
@@ -242,8 +242,9 @@ tree_sequence = msprime.simulate(population_configurations=pop_config,
 mstree = tree_sequence.first()
 
 #### get some random tip labels
-labels=rand_names(mstree.num_nodes)
-labels={ k:v for k, v in labels.iteritems() if (mstree.is_leaf(k)) }
+# labels=rand_names(mstree.num_nodes)
+# labels={ k:v for k, v in labels.iteritems() if (mstree.is_leaf(k)) }
+labels={i:str(i) for i in range(mstree.num_nodes) if ( mstree.is_leaf(i) ) }
 
 genus_map = dict()
 for leaf in mstree.leaves():
