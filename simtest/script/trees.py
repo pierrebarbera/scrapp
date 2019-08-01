@@ -128,6 +128,12 @@ def command_line_args_parser():
         default=0.2
     )
 
+    parser.add_argument(
+        '--verbose',
+        help="More verbose output.",
+        action='store_true'
+    )
+
     return parser
 
 def command_line_args_postprocessor( args ):
@@ -148,51 +154,64 @@ def command_line_args():
     args = command_line_args_postprocessor( args )
     return args
 
-def path_between(A, B):
-    # ETE3 doesn't have a built in path function (AFAIK), so instead
-    # we combine the paths to a common ancestor:
-    ancestor, path = A.get_common_ancestor( B, get_path=True )
-
-    # apparently ETE returns path as the path of A and B to the root here...
-    # so we need to find first where the paths intersect
-    AtoRoot = path[A]
-    BtoRoot = path[B]
-
-    # symmetric set difference
-    diffset = AtoRoot ^ BtoRoot
-
-    # take the difference of A's and B's path to root and add the ancestor
-    return diffset | {ancestor}
-
 
 def get_node_by_name(tree, name):
-    nodes = tree.search_nodes(name=name)
-    if not nodes:
+    node = next(tree.iter_search_nodes(name=name))
+    if not node:
         raise Exception("No such node: {}", name)
-    return nodes[0]
-
-def popcount( taxa, pop_map ):
-    count = 0
-    taxonset = set(taxa)
-    for k,v in pop_map.iteritems():
-        vset = set(v)
-        # if the intersection is nonempty, add one to the count
-        if vset & taxonset:
-            count += 1
-
-    return count
+    return node
 
 def print_species_map( spec_map, file ):
     with open(file, "w+") as f:
         f.write(json.dumps(spec_map, sort_keys=True,
                 indent=4, separators=(',', ': ')))
 
-def rand_names(n=1):
-    word_file = os.path.join(dir_path, "words.txt")
-    words = open(word_file).read().splitlines()
+def prune_node( tree, ref_map, node ):
+    assert node.is_leaf()
+    # get the node's species count value (saved as 'support')
+    count = node.support + node.up.support
 
-    rand_nums = rd.choice(len(words), n, replace=False)
-    return {i:words[rand_nums[i]] for i in range(len(rand_nums))}
+    # decide where to move the species count
+    target_id = 1 if node.up.children[0] == node else 0
+
+    # add that support to the neighbor node that will survive the prune
+    if not node.up.up and len(node.up.children) == 2:
+        # .up is the non-virtual root, that this prune would remove entirely
+        # so we have to add the species count further down
+        # we decide to add it to the grandchild with the longer branch
+        largest_dist_id = 0
+        largest_dist = 0.0
+        for child_id in range( len( node.up.children[ target_id ].children ) ):
+            if node.up.children[ target_id ].children[ child_id ].dist > largest_dist:
+                largest_dist = node.up.children[ target_id ].children[ child_id ].dist
+                largest_dist_id = child_id
+
+        # in this case we also need to account for the support value sitting at the
+        # neighbor node, that is destined to become the new root
+        count += node.up.children[ target_id ].support
+        node.up.children[ target_id ].children[ largest_dist_id ].support += count
+    else:
+        node.up.children[ target_id ].support += count
+
+    # node is already gone in the ref_map
+    assert node.name not in ref_map.values()
+
+    # prune the tree
+    node.delete(prevent_nondicotomic=True, preserve_branch_length=True)
+
+    # special case: the root node now only has one child left, making it a linear node
+    # reset the root as that child
+    if len(tree.children) == 1:
+        tree.children[0].delete(prevent_nondicotomic=False, preserve_branch_length=True)
+
+def prune_reference( tree, ref_map, node_key ):
+    assert node_key in ref_map
+    # look up the node
+    node=get_node_by_name( tree, ref_map[ node_key ][0] )
+    # remove this node from ref_map
+    del ref_map[ node_key ]
+    # prune the node
+    prune_node( tree, ref_map, node )
 
 
 # ===========================
@@ -211,6 +230,8 @@ else:
     SEED=None
 
 rd.seed(SEED)
+
+log = True if args.verbose else False
 
 n=args.num_pops
 MIGRATION_RATE=args.mig_rate
@@ -242,8 +263,6 @@ tree_sequence = msprime.simulate(population_configurations=pop_config,
 mstree = tree_sequence.first()
 
 #### get some random tip labels
-# labels=rand_names(mstree.num_nodes)
-# labels={ k:v for k, v in labels.iteritems() if (mstree.is_leaf(k)) }
 labels={i:str(i) for i in range(mstree.num_nodes) if ( mstree.is_leaf(i) ) }
 
 genus_map = dict()
@@ -260,17 +279,10 @@ for leaf in mstree.leaves():
 
 print_species_map(pop_species_map, os.path.join(out_dir, "popmap"))
 
-#### convert branch lengths to # expected substitutions
-# import tskit
-# span = mstree.interval[1] - mstree.interval[0]
-# for u in mstree.nodes():
-#     if mstree.parent(u) != tskit.NULL:
-#          expected_muts = span * mstree.branch_length(u) * mutation_rate
-#          print u, ": ", mstree.branch_length(u), " vs ", expected_muts
-
 true_tree = Tree(mstree.newick(node_labels=labels))
-# print(true_tree.write())
+
 RAX_MIN_BL=1e-6
+#### convert branch lengths to # expected substitutions
 for node in true_tree.traverse("postorder"):
     node.dist = node.dist * mutation_rate
     # clip the min branch length to make it workable with raxml-ng
@@ -279,6 +291,9 @@ for node in true_tree.traverse("postorder"):
 #### print the true_tree as newick
 with open(os.path.join(out_dir, "true_tree.newick"), "w+") as f:
     f.write(true_tree.write(format=5,dist_formatter="%.12f"))
+
+# prep the copy to work on
+ref_tree = true_tree.copy()
 
 #### randomly select one individual per population for the reference set,
     # add the rest for the query set
@@ -292,23 +307,30 @@ for k,v in pop_species_map.iteritems():
         else:
             qry_map[k].append( v[i] )
 
-
-#### randomly trim out another 50% from the ref set
-N = len(ref_map.keys())
-for key in rd.choice(N, int(N*PRUNE_FRACT), replace=False):
-    del ref_map[key]
-
-#### give inner nodes unique names such that we can find a mapping between true and ref later
-number=1000
-for node in true_tree.iter_search_nodes():
-    if not node.name:
-        node.name = str(number)
-        number += 1
-
-#### trim out all others from the true_tree
+# already prune out the query taxa
 ref_list=[v[0] for k,v in ref_map.iteritems()]
-ref_tree = true_tree.copy()
 ref_tree.prune(ref_list, preserve_branch_length=True)
+
+#### NOW we need to account for the number of species per remaining taxa in the tree
+# aka one per taxon, since they are the species representatives
+for node in ref_tree.traverse(strategy='postorder'):
+    node.support = 1 if node.is_leaf() else 0
+
+#### randomly trim out another PRUNE_FRACT% from the ref set
+N = len( ref_map )
+num_remove_rarify=0
+for key in rd.choice( ref_map.keys(), int(N*PRUNE_FRACT), replace=False ):
+    prune_reference( ref_tree, ref_map, key )
+    num_remove_rarify+=1
+
+# check that the assigned species counts add up
+total_support=0
+for node in ref_tree.traverse(strategy='postorder'):
+    total_support += node.support
+total_pops = len(pop_species_map.keys())
+assert (len(ref_tree) + num_remove_rarify) == total_pops, "{} vs {}".format( len(ref_tree) + num_remove_rarify, total_pops)
+assert total_support == total_pops, "{} vs {}".format( total_support, total_pops)
+
 
 #### write the ref_tree
 with open(os.path.join(out_dir, "reference.newick"), "w+") as f:
@@ -319,33 +341,10 @@ with open(os.path.join(out_dir, "reference.newick"), "w+") as f:
 print_species_map(ref_map, os.path.join(out_dir, "refmap"))
 print_species_map(qry_map, os.path.join(out_dir, "qrymap"))
 
-#### determine the "true" species count of the edges in the ref tree
-# we do this by getting every edge (tuple of the two adjacent nodes) in the ref tree
-for distal in ref_tree.iter_search_nodes():
-    proximal = distal.up
-    # (except the root, its two edges are covered bottom up already)
-    if not proximal:
-        continue
-
-    # ... and finding their original locations in the true tree
-    P = get_node_by_name(true_tree, proximal.name)
-    D = get_node_by_name(true_tree, distal.name)
-
-    # then getting the path between those two in the true tree
-    prune_path = path_between(P, D)
-
-    # all nodes n from the path, except
-    pruned_nodes = [y for n in prune_path if n not in [P,D] for x in n.children if x not in prune_path for y in x.get_leaves()]
-
-    # and making a list of all leaves' labels in that list
-    pruned_leaf_labels = [ node.name for node in pruned_nodes if node.is_leaf() ]
-
-    # and using that to look up how many populations were removed
-    count = popcount( pruned_leaf_labels, qry_map )
-
-    # finally we capture that information on the ref tree
-    distal.add_features(species_count=count)
-
 #### write the annotated ref_tree
+# add the annotations where the count is greater than 0
+for node in ref_tree.traverse(strategy='postorder'):
+    if node.support > 0:
+        node.add_features(species_count=node.support)
 with open(os.path.join(out_dir, "annot_reference.newick"), "w+") as f:
     f.write( ref_tree.write( format=5,dist_formatter="%.12f",features=["species_count"] ) )

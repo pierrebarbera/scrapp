@@ -25,9 +25,9 @@ echo "run,scrapp_mode,query_fract,rarify_fract,krd,norm_krd,norm_norm_krd,norm_u
 
 run=0
 for scrapp_mode in rootings bootstrap outgroup; do
-  for query_fract in 0.2 0.4 0.6; do
-    for rarify_fract in 0.2 0.4 0.6; do
-      for i in {1..10}; do
+  for query_fract in 0.25 0.5; do
+    for rarify_fract in 0.25 0.5; do
+      for i in {0..4}; do
         echo "Starting run ${run}!"
 
         # scrapp_mode=rootings
@@ -36,7 +36,7 @@ for scrapp_mode in rootings bootstrap outgroup; do
         export SCRAPP_SIM_CURDIR
         rm -r ${SCRAPP_SIM_CURDIR}/* 2> /dev/null
 
-        printf "${run},${scrapp_mode},${query_fract},${query_fract}," >> ${RESULT_CSV}
+        printf "${run},${scrapp_mode},${query_fract},${rarify_fract}," >> ${RESULT_CSV}
 
         # echo "  generate the tree..."
         ./split_empirical.sh --rarify ${rarify_fract} --query ${query_fract}
