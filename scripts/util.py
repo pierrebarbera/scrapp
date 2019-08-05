@@ -3,6 +3,68 @@ import platform
 import subprocess as sub
 import urllib2
 
+def call_with_check_file(
+    cmd_to_call,
+    check_file_path,
+    out_file_path=None,
+    err_file_path=None,
+    verbose=False
+):
+    """
+    Run a shell command if it was not run before, using a check file to find out whether we ran it
+    before or not.
+    """
+
+    cmd_string = " ".join(cmd_to_call)
+
+    if verbose:
+        print "Running command: " + cmd_string
+
+    # If the check file exists, it has to contain the exact same command.
+    if os.path.isfile( check_file_path ):
+        with open( check_file_path, 'r') as check_file_handle:
+            check_file_content = check_file_handle.read()
+
+        if check_file_content == cmd_string:
+            if verbose:
+                print "Already did this step. Skipping."
+            return True
+        else:
+            raise RuntimeError(
+                "Check file '" + check_file_path + "' already exists but has unexpected content. "
+                "This most likely means that you ran SCRAPP before, using the same work "
+                "directory, but different input files."
+            )
+
+    # If the checkfile does not exist, run the command, then create the checkfile and write
+    # the command to it.
+    else:
+        # Prepare out and err files, if needed.
+        out_file = None
+        if out_file_path is not None:
+            if not os.path.exists( os.path.dirname( out_file_path )):
+                os.makedirs( os.path.dirname( out_file_path ))
+            out_file = open( out_file_path, "w+" )
+        err_file = None
+        if err_file_path is not None:
+            if not os.path.exists( os.path.dirname( err_file_path )):
+                os.makedirs( os.path.dirname( err_file_path ))
+            err_file = open( err_file_path, "w+" )
+
+        # Call the command and record its exit code.
+        success = ( sub.call( cmd_to_call, stdout=out_file, stderr=err_file ) == 0 )
+
+        # If we were not successfull, end the function here.
+        if not success:
+            return success
+
+        # Only if the command returned successfully, create the checkfile.
+        if not os.path.exists( os.path.dirname( check_file_path )):
+            os.makedirs( os.path.dirname( check_file_path ))
+        with open( check_file_path, "w+") as check_file_handle:
+            check_file_handle.write( cmd_string )
+        return success
+
 # ==================================================================================================
 #     globals
 # ==================================================================================================

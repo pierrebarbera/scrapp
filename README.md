@@ -1,19 +1,24 @@
 # scrapp
 Species Counting on Reference trees viA Phylogenetic Placements
 
-# Call
+# Using SCRAPP
 
-Simple test call for development purposes:
+Simple call for a common combination of files, using 4 threads:
 
-    ./scrapp.py -j foo -a bar -t 3
+    ./scrapp.py --jplace epa_result.jplace --alignment query.fasta --threads 4
 
-and with MPI
+or with MPI:
 
-    mpiexec -np 2 python scrapp.py -j foo -a bar -t 4
-
-from the main directory.
+    ./scrapp.py --jplace epa_result.jplace --alignment query.fasta --parallel mpi --threads 4
 
 # Requirements
+<!-- Required python version:
+
+    > 2.7.6 -->
+
+In terms of python packages:
+
+    numpy
 
 For MPI, we need
 

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2.7
 
 import argparse
 import glob
@@ -588,45 +588,32 @@ if __name__ == "__main__":
     #     Species Delimitation
     # -------------------------------------------------------------------------
 
-    @vectorize_parallel( method = pardec_method, num_procs = num_threads )
-    def run_mptp_processes( edge_dir, work_dir ):
+    mptp_cmd = ["mpiexec", str(num_threads)] if args.parallel == "mpi" else []
 
-        trees = glob.glob( os.path.join( args.work_dir, edge_dir, "trees", "*.newick") )
-        for tree in trees:
-            # get the name of the file to use as a subdirectory name
-            tree_name = os.path.basename( tree ).split(".", 2)[0]
+    mptp_wrapper = os.path.join(base_dir_, "scripts/mptp_wrap.py")
+    mptp_cmd.extend([ mptp_wrapper, "--work-dir", args.work_dir ])
+    if args.parallel == "threads":
+        mptp_cmd.extend(["--threads", str(num_threads)])
+    if args.seed:
+        mptp_cmd.extend(["--seed", str(args.seed)])
+    mptp_cmd.extend( edge_list )
 
-            # set the paths/files accordingly
-            mptp_out_dir = os.path.join( args.work_dir, edge_dir, "delimit", tree_name)
-            mptp_chk_file = os.path.join( mptp_out_dir, "mptp_cmd.txt" )
-            mptp_out_file = os.path.join( mptp_out_dir, "mptp_log.txt" )
+    print " ".join(mptp_cmd)
 
-            mptp_cmd = [
-                paths[ "mptp" ],
-                "--tree_file", tree,
-                "--ml", "--multi",
-                "--output_file",  os.path.join( mptp_out_dir, "mptp_result" )
-            ]
-
-            if args.seed:
-                mptp_cmd.extend(["--seed", str(args.seed)])
-
-            # do a delimitation per possible rooting
-
-            if ( not call_with_check_file(
-                mptp_cmd,
-                mptp_chk_file,
-                out_file_path=mptp_out_file,
-                err_file_path=mptp_out_file,
-                verbose=False
-            ) ):
-                raise RuntimeError( "mptp has failed!" )
-
-        return 0
+    mptp_chk_file = os.path.join( args.work_dir, "master_mptp_cmd.txt" )
+    mptp_out_file = os.path.join( args.work_dir, "master_mptp_log.txt" )
 
     print "running mptp!"
     runtime = time.time()
-    run_mptp_processes( edge_list, args.work_dir )
+    if ( not call_with_check_file(
+        mptp_cmd,
+        mptp_chk_file,
+        out_file_path=mptp_out_file,
+        err_file_path=mptp_out_file,
+        verbose=False
+    ) ):
+        raise RuntimeError( "mptp_wrap has failed!" )
+    print "mptp done."
     runtime = time.time() - runtime
     runtimes.append({"name":"mptp", "time":runtime})
 

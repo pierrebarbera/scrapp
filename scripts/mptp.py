@@ -73,10 +73,6 @@ def summarize( results ):
 
   return summary
 
-
-
-
-
 # /*
 #  * Parse a mptp result file into the internal format
 #  */
