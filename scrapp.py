@@ -438,7 +438,7 @@ if __name__ == "__main__":
         output.to_stream(sys.stdout)
     output.to_file( os.path.join( args.work_dir, "summary.tea" ) )
     with open(os.path.join( args.work_dir, "summary.newick" ), "w+") as f:
-        f.write( output.annotated_tree("species-count", "count_median") )
+        f.write( output.annotated_tree("species-count", "count_median", alias_name="species_count") )
 
     print "Finished!"
     if args.verbose:

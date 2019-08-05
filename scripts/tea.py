@@ -87,7 +87,7 @@ class TEA:
                                   }
                                 }
 
-  def annotated_tree( self, view_name, annotation_key ):
+  def annotated_tree( self, view_name, annotation_key, alias_name=None ):
     """ returns an edge-annotated tree, according to the specified annotation_key
     """
 
@@ -112,7 +112,8 @@ class TEA:
       edge_id = int(tree_array[i])
       if edge_id in annotation_lookup:
         # replace with annotation
-        tree_array[i] = "[&&NHX:{}={}]".format( annotation_key, annotation_lookup[ edge_id ] )
+        nhx_name = alias_name if alias_name else annotation_key
+        tree_array[i] = "[&&NHX:{}={}]".format( nhx_name, annotation_lookup[ edge_id ] )
       else:
         # erase
         tree_array[i] = ""
