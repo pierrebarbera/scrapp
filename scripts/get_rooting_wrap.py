@@ -24,7 +24,7 @@ def command_line_args_parser():
     # Init an args parser, with a group of required named arguments. It is just nicer to use named
     # arguments than having to rely on their order (i.e., use positional arguments instead).
     parser = argparse.ArgumentParser(
-        description="Wrapper script that calls mPTP in parallel, using threading or MPI, on a given set of directories"
+        description="Wrapper script that calls get_rootings in parallel, using threading or MPI, on a given set of directories"
     )
     parser_required = parser.add_argument_group('required arguments')
 
@@ -68,6 +68,12 @@ def command_line_args_parser():
         action="store_true"
     )
 
+    parser.add_argument(
+        "--outgroup",
+        help="Use outgroup rooting.",
+        action="store_true"
+    )
+
     return parser
 
 def command_line_args_postprocessor( args ):
@@ -96,39 +102,30 @@ def is_master():
         return True
 
 def run_func( edge_dir, args ):
-    assert os.path.exists( edge_dir )
-    assert os.path.exists( args.work_dir )
+    rootings_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
+    rootings_chk_file = os.path.join( rootings_out_dir, "rootings_cmd.txt" )
+    rootings_out_file = os.path.join( rootings_out_dir, "rootings_log.txt" )
 
-    trees = glob.glob( os.path.join( args.work_dir, edge_dir, "trees", "*.newick") )
-    for tree in trees:
-        # get the name of the file to use as a subdirectory name
-        tree_name = os.path.basename( tree ).split(".", 2)[0]
+    best_trees = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
 
-        # set the paths/files accordingly
-        mptp_out_dir = os.path.join( args.work_dir, edge_dir, "delimit", tree_name)
-        mptp_chk_file = os.path.join( mptp_out_dir, "mptp_cmd.txt" )
-        mptp_out_file = os.path.join( mptp_out_dir, "mptp_log.txt" )
+    if not best_trees:
+        raise Exception("No trees were found in `" + os.path.join( args.work_dir, edge_dir, "search") + "` during get_rooting" )
 
-        mptp_cmd = [
-            paths[ "mptp" ],
-            "--tree_file", tree,
-            "--ml", "--multi",
-            "--output_file",  os.path.join( mptp_out_dir, "mptp_result" )
-        ]
+    rootings_cmd = [
+        paths[ "get_rooting" ],
+        best_trees[0],
+        rootings_out_dir,
+        "all" if not args.outgroup else "outgroup"
+    ]
 
-        if args.seed:
-            mptp_cmd.extend(["--seed", str(args.seed)])
-
-        # do a delimitation per possible rooting
-
-        if ( not util.call_with_check_file(
-            mptp_cmd,
-            mptp_chk_file,
-            out_file_path=mptp_out_file,
-            err_file_path=mptp_out_file,
-            verbose=args.verbose
-        ) ):
-            raise RuntimeError( "mptp has failed!" )
+    if ( not util.call_with_check_file(
+        rootings_cmd,
+        rootings_chk_file,
+        out_file_path=rootings_out_file,
+        err_file_path=rootings_out_file,
+        verbose=args.verbose
+    ) ):
+        raise RuntimeError( "get_rooting has failed!" )
 
     return 0
 
@@ -169,4 +166,3 @@ if __name__ == "__main__" and is_master():
         for result in results:
             if result.get() > 0:
                 raise RuntimeError( "mptp has failed!" )
-

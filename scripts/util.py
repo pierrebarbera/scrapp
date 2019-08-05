@@ -2,6 +2,9 @@ import os
 import platform
 import subprocess as sub
 import urllib2
+import time
+
+scripts_dir_ = os.path.dirname( os.path.realpath(__file__) )
 
 def call_with_check_file(
     cmd_to_call,
@@ -64,6 +67,40 @@ def call_with_check_file(
         with open( check_file_path, "w+") as check_file_handle:
             check_file_handle.write( cmd_string )
         return success
+
+def call_wrapped( name, edge_list, args, extra=[] ):
+    cmd = ["mpiexec", str(args.num_threads)] if args.parallel == "mpi" else []
+
+    wrapper = os.path.join(scripts_dir_, "{}_wrap.py".format( name ))
+    assert os.path.isfile( wrapper )
+    assert os.access( wrapper, os.X_OK )
+
+    cmd.extend([ wrapper, "--work-dir", args.work_dir ])
+    if args.parallel == "threads":
+        cmd.extend(["--threads", str(args.num_threads)])
+    if args.seed:
+        cmd.extend(["--seed", str(args.seed)])
+    if args.verbose:
+        cmd.extend(["--verbose"])
+    if extra:
+        cmd.extend( extra )
+    cmd.extend( edge_list )
+
+    chk_file = os.path.join( args.work_dir, "{}_wrap_cmd.txt".format( name ) )
+    out_file = os.path.join( args.work_dir, "{}_wrap_log.txt".format( name ) )
+
+    if args.verbose: print "running {}!".format( name )
+    runtime = time.time()
+    if ( not call_with_check_file(
+        cmd,
+        chk_file,
+        out_file_path=out_file,
+        err_file_path=out_file,
+        verbose=args.verbose
+    ) ):
+        raise RuntimeError( "{}_wrap has failed!".format( name ) )
+    runtime = time.time() - runtime
+    return {"name":name, "time":runtime}
 
 # ==================================================================================================
 #     globals

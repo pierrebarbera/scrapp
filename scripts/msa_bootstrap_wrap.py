@@ -24,7 +24,7 @@ def command_line_args_parser():
     # Init an args parser, with a group of required named arguments. It is just nicer to use named
     # arguments than having to rely on their order (i.e., use positional arguments instead).
     parser = argparse.ArgumentParser(
-        description="Wrapper script that calls mPTP in parallel, using threading or MPI, on a given set of directories"
+        description="Wrapper script that calls msa_bootstrap in parallel, using threading or MPI, on a given set of directories"
     )
     parser_required = parser.add_argument_group('required arguments')
 
@@ -96,39 +96,74 @@ def is_master():
         return True
 
 def run_func( edge_dir, args ):
-    assert os.path.exists( edge_dir )
-    assert os.path.exists( args.work_dir )
+    bs_reps_out_dir = os.path.join( args.work_dir, edge_dir, "bs_rep_msas" )
+    bs_reps_chk_file = os.path.join( bs_reps_out_dir, "bs_reps_cmd.txt" )
+    bs_reps_out_file = os.path.join( bs_reps_out_dir, "bs_reps_log.txt" )
 
-    trees = glob.glob( os.path.join( args.work_dir, edge_dir, "trees", "*.newick") )
-    for tree in trees:
-        # get the name of the file to use as a subdirectory name
-        tree_name = os.path.basename( tree ).split(".", 2)[0]
+    msa = os.path.join( args.work_dir, edge_dir, "aln.fasta" )
 
-        # set the paths/files accordingly
-        mptp_out_dir = os.path.join( args.work_dir, edge_dir, "delimit", tree_name)
-        mptp_chk_file = os.path.join( mptp_out_dir, "mptp_cmd.txt" )
-        mptp_out_file = os.path.join( mptp_out_dir, "mptp_log.txt" )
+    bs_reps_cmd = [
+        paths[ "msa_bootstrap" ],
+        msa,
+        bs_reps_out_dir
+    ]
 
-        mptp_cmd = [
-            paths[ "mptp" ],
-            "--tree_file", tree,
-            "--ml", "--multi",
-            "--output_file",  os.path.join( mptp_out_dir, "mptp_result" )
+    if ( not util.call_with_check_file(
+        bs_reps_cmd,
+        bs_reps_chk_file,
+        out_file_path=bs_reps_out_file,
+        err_file_path=bs_reps_out_file,
+        verbose=args.verbose
+    ) ):
+        raise RuntimeError( "get_all_bs_reps has failed!" )
+
+    trees_eval_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
+    trees_eval_out_file = os.path.join( trees_eval_out_dir, "bs_reps_log.txt" )
+
+    best_trees = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
+
+    if not best_trees:
+        raise Exception("No trees were found in `" + os.path.join( args.work_dir, edge_dir, "search") + "` during run_bootstraps_processes" )
+
+    bsrep_msas = glob.glob( os.path.join( bs_reps_out_dir, "replicate_*.fasta" ) )
+
+    if (args.protein):
+        datatype = 'aa'
+        model = "PROTGTR+G"
+    else:
+        datatype = 'nt'
+        model = "GTR+G"
+
+    for rep_msa in bsrep_msas:
+        filename = rep_msa.split( "/" )[-1]
+        name = filename.split( "." )[0]
+
+        trees_eval_chk_file = os.path.join( trees_eval_out_dir, name + "_eval_cmd.txt" )
+
+        # reevaluate the tree under this bootstrapped MSA
+
+        trees_eval_cmd = [
+            paths[ "raxml-ng" ],
+            "--evaluate",
+            "--msa", rep_msa,
+            "--tree", best_trees[0],
+            "--prefix", trees_eval_out_dir + "/" + name,
+            "--model", model,
+            "--threads", "1"
         ]
 
-        if args.seed:
-            mptp_cmd.extend(["--seed", str(args.seed)])
-
-        # do a delimitation per possible rooting
-
-        if ( not util.call_with_check_file(
-            mptp_cmd,
-            mptp_chk_file,
-            out_file_path=mptp_out_file,
-            err_file_path=mptp_out_file,
+        if ( not call_with_check_file(
+            trees_eval_cmd,
+            trees_eval_chk_file,
+            out_file_path=trees_eval_out_file,
+            err_file_path=trees_eval_out_file,
             verbose=args.verbose
         ) ):
-            raise RuntimeError( "mptp has failed!" )
+            raise RuntimeError( "trees_eval has failed!" )
+
+        # rename the resulting tree
+        sub.call(["ln", "-s", os.path.join( trees_eval_out_dir, name + ".raxml.bestTree" ),
+                                os.path.abspath(os.path.join( trees_eval_out_dir, name + ".newick"))], stdout=FNULL)
 
     return 0
 

@@ -1,6 +1,3 @@
-[submodule "deps/parallel_decorators"]
-	path = deps/parallel_decorators
-	url = https://github.com/ohlmann/parallel_decorators.git
 [submodule "deps/mptp"]
 	path = deps/mptp
 	url = https://github.com/Pas-Kapli/mptp.git
@@ -10,11 +7,3 @@
 [submodule "deps/ParGenes"]
 	path = deps/ParGenes
 	url = https://github.com/BenoitMorel/ParGenes.git
-[submodule "swarm"]
-	path = swarm
-	url = https://github.com/torognes/swarm
-	branch = master
-[submodule "deps/swarm"]
-	path = deps/swarm
-	url = https://github.com/torognes/swarm
-	branch = master
