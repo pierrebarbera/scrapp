@@ -146,7 +146,7 @@ std::vector<std::string> get_most_distant_leaf_per_node(
 
     // search each row (whose indices equal the node indices) for the distance maximum
     // and the leaf behind it, then get that taxons name
-    for( size_t r = 1; r < pwd.rows(); ++r ) {
+    for( size_t r = 0; r < pwd.rows(); ++r ) {
         size_t best_c = 0;
         double cur_max = 0.0;
         for( size_t c = 0; c < pwd.cols(); ++c ) {
@@ -500,6 +500,7 @@ int main( int argc, char** argv )
             LOG_ERR << "Reference alignment and Query alignment have differing widths.";
             return 1;
         }
+        LOG_INFO << "Outgroup inclusion was selected, reference MSA found.";
     }
 
     // Build map from seq label to id in the set.
@@ -546,6 +547,7 @@ int main( int argc, char** argv )
         if( edge_pqueries.size() > max_num ) {
             size_t const k = max_num/10;
             size_t const x = 10;
+            LOG_INFO << "Number of queries above threshold! clustering. k = " << k <<", x = " << x;
             edge_pqueries = placement_pseudokmedoids( edge_pqueries, seqs, k, x );
         }
 
@@ -585,6 +587,7 @@ int main( int argc, char** argv )
             auto const primary_node_id = edge.primary_node().index();
 
             Sequence seq_cpy = get_sequence( ref_seqs, most_distant_taxon[ primary_node_id ] );
+            LOG_INFO << "Including sequence as outgroup: '" << seq_cpy.label() << "'";
             seq_cpy.label( "__SCRAPP_OUTGROUP__" + seq_cpy.label() );
 
             edge_seqs[ edge_index ].add( seq_cpy );
