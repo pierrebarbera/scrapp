@@ -75,7 +75,6 @@ def command_line_args_parser():
         dest='bootstrap',
     )
 
-
     parser.add_argument(
         '--min-queries',
         help="If an edge contains a number of unique queries below this value, ignore the edge.",
@@ -86,7 +85,7 @@ def command_line_args_parser():
     )
     parser.add_argument(
         '-c', '--cluster-above',
-        help="If an edge contains a number of unique queries above this value, apply OTU clustering.",
+        help="If an edge contains a number of unique queries above this value, apply clustering.",
         action='store',
         dest='max_query',
         type=int,
@@ -115,14 +114,7 @@ def command_line_args_parser():
         choices=[ "threads", "mpi" ],
         default="threads"
     )
-    # parser.add_argument(
-    #     '-o', '--out-dir',
-    #     help="Output directory.",
-    #     action='store',
-    #     dest='out_dir',
-    #     type=str,
-    #     default=base_dir_
-    # )
+
     parser.add_argument(
         '-w', '--work-dir',
         help="Directory path for intermediate work files.",
@@ -162,40 +154,45 @@ def command_line_args_parser():
 
     return parser
 
+def expect_dir_exists( dir_path ):
+    if not os.path.isdir( dir_path ):
+        raise RuntimeError( "Directory doesn't exist: " + dir_path )
+
+def expect_file_exists( file_path ):
+    if not os.path.isfile( file_path ):
+        raise RuntimeError( "File doesn't exist: " + file_path )
+
+def expect_executable_exists( executable ):
+    import distutils.spawn
+    if not distutils.spawn.find_executable( executable ):
+        raise RuntimeError( "Executable not found: " + executable )
+
 def command_line_args_postprocessor( args ):
     """
     Given the result of argsparse.parse_args(), this function does some specific post-processing
     that we want for our command line arguments.
     """
 
-    # If the user did not specify an output file, use the name of the Jplace file, appending
-    # or replacing the the file extension to Newick.
-    # if args.output_file is None:
-    #     # Get file name and extension and append/replace depending on the extension.
-    #     jfn, jfe = os.path.splitext( args.jplace_file )
-    #     if jfe == ".jplace":
-    #         args.output_file = jfn + ".newick"
-    #     else:
-    #         args.output_file = args.jplace_file + ".newick"
-
     # If user did not provide number of threads, use all available ones.
     if args.num_threads == 0:
         import multiprocessing
         args.num_threads = multiprocessing.cpu_count()
 
-    # Translate parallelization method to the name used by the decorators.
-    # if args.parallelization.lower() == "threads":
-    #     args.parallelization = "processes"
-    # elif args.parallelization.lower() == "mpi":
-    #     args.parallelization = "MPI"
-    # else:
-    #     raise RuntimeError( "Invalid parallelization method: '" + args.parallelization + "'." )
-
     # Make sure that all paths are fully resolved and dirs have no trailing slashes.
     args.jplace_file = os.path.abspath( os.path.realpath( args.jplace_file ))
     args.aln_file    = os.path.abspath( os.path.realpath( args.aln_file ))
-    # args.output_file = os.path.abspath( os.path.realpath( args.output_file ))
     args.work_dir    = os.path.abspath( os.path.realpath( args.work_dir ))
+    if args.reference_alignment:
+        args.reference_alignment = os.path.abspath( os.path.realpath( args.reference_alignment ))
+        expect_file_exists( args.reference_alignment )
+
+    # expect_dir_exists( args.work_dir )
+    expect_file_exists( args.jplace_file )
+    expect_file_exists( args.aln_file )
+
+    # if the user wants mpi, check that it's actually available
+    if args.parallel == "mpi":
+        expect_executable_exists( "mpiexec" )
 
     return args
 
@@ -295,7 +292,6 @@ def get_treestring( jplace_path ):
 
 if __name__ == "__main__":
 
-
     pp = pprint.PrettyPrinter(indent=4)
     # Get all needed input.
     paths = util.subprogram_commands()
@@ -308,8 +304,6 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     #     Initial Master Work
     # -------------------------------------------------------------------------
-    runtimes = []
-    num_threads = args.num_threads
 
     if is_master():
         print "Running SCRAPP"
@@ -318,9 +312,6 @@ if __name__ == "__main__":
         if args.verbose:
             print "Command line arguments:", str(args)[len("Namespace("):-1]
             print "Subprogram paths:", paths
-
-        # Check whether all sub programs exist.
-        # subprograms_exist( paths )
 
         # Create the work dir to store our stuff.
         if not os.path.exists( args.work_dir ):
@@ -373,9 +364,6 @@ if __name__ == "__main__":
 
         # User output
         print "Processing", len(edge_list), "edges."
-        # if args.verbose:
-        #     for edge in edge_list:
-        #         print "  - " + edge
 
     else:
         # For non-master ranks, we create a dummy list, which is passed to the parallel function.
@@ -546,14 +534,14 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     @vectorize_parallel( method = pardec_method, num_procs = num_threads )
     def run_rootings_processes( edge_dir, work_dir ):
-        rootings_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
+        rootings_out_dir = os.path.join( work_dir, edge_dir, "trees")
         rootings_chk_file = os.path.join( rootings_out_dir, "rootings_cmd.txt" )
         rootings_out_file = os.path.join( rootings_out_dir, "rootings_log.txt" )
 
-        best_trees = glob.glob( os.path.join( args.work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
+        best_trees = glob.glob( os.path.join( work_dir, edge_dir, "search", "*.raxml.bestTree" ) )
 
         if not best_trees:
-            raise Exception("No trees were found in `" + os.path.join( args.work_dir, edge_dir, "search") + "` during get_rooting" )
+            raise Exception("No trees were found in `" + os.path.join( work_dir, edge_dir, "search") + "` during get_rooting" )
 
         rootings_cmd = [
             paths[ "get_rooting" ],
