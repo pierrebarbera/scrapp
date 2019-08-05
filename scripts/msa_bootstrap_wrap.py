@@ -5,10 +5,13 @@ import os
 import sys
 import glob
 import util
+import subprocess as sub
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
 
-# a wrapper script to parallelize many calls to mptp, using threading or MPI, depending on how it was called
+FNULL = open(os.devnull, 'wb')
+
+# a wrapper script to parallelize many calls to msa_bootstrap, using threading or MPI, depending on how it was called
 
 def command_line_args_parser():
     """
@@ -66,6 +69,14 @@ def command_line_args_parser():
         "--verbose",
         help="Increase output verbosity.",
         action="store_true"
+    )
+
+    parser.add_argument(
+        "--model",
+        help="Model to use.",
+        action="store",
+        dest="model",
+        type=str
     )
 
     return parser
@@ -127,13 +138,6 @@ def run_func( edge_dir, args ):
 
     bsrep_msas = glob.glob( os.path.join( bs_reps_out_dir, "replicate_*.fasta" ) )
 
-    if (args.protein):
-        datatype = 'aa'
-        model = "PROTGTR+G"
-    else:
-        datatype = 'nt'
-        model = "GTR+G"
-
     for rep_msa in bsrep_msas:
         filename = rep_msa.split( "/" )[-1]
         name = filename.split( "." )[0]
@@ -148,11 +152,11 @@ def run_func( edge_dir, args ):
             "--msa", rep_msa,
             "--tree", best_trees[0],
             "--prefix", trees_eval_out_dir + "/" + name,
-            "--model", model,
+            "--model", args.model,
             "--threads", "1"
         ]
 
-        if ( not call_with_check_file(
+        if ( not util.call_with_check_file(
             trees_eval_cmd,
             trees_eval_chk_file,
             out_file_path=trees_eval_out_file,
@@ -191,7 +195,7 @@ if __name__ == "__main__" and is_master():
             # wait for all processes to return
             for f in futures:
                 if f.result() > 0:
-                    raise RuntimeError( "mptp has failed!" )
+                    raise RuntimeError( "msa_bootstrap has failed!" )
             do_threading = False
         else:
             executor = ProcessPoolExecutor(max_workers=threads)
@@ -203,5 +207,5 @@ if __name__ == "__main__" and is_master():
         results = [pool.apply_async( run_func, args=(edge_dir, args)) for edge_dir in args.edge_dirs]
         for result in results:
             if result.get() > 0:
-                raise RuntimeError( "mptp has failed!" )
+                raise RuntimeError( "msa_bootstrap has failed!" )
 

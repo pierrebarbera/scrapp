@@ -388,17 +388,15 @@ if __name__ == "__main__":
             mkdirp( pargenes_out_dir )
             shutil.copy( filename, pargenes_out_dir )
 
-
-
-
     # -------------------------------------------------------------------------
-    #    EITHER root the trees on the outgroup OR get all possible rootings per tree
     #     Mode 1: Variance by bootstrap
     # -------------------------------------------------------------------------
     if args.bootstrap:
-        runtimes += call_wrapped( "msa_bootstrap", edge_list, args )
+        extra = ["--model", model]
+        runtimes += call_wrapped( "msa_bootstrap", edge_list, args, extra )
     # -------------------------------------------------------------------------
     #     Mode 2: Variance by different rootings
+    #  OR Mode 3: root by outgroup
     # -------------------------------------------------------------------------
     else:
         extra = ["--outgroup"] if args.reference_alignment else []
@@ -419,7 +417,7 @@ if __name__ == "__main__":
 
     output.set_tree( get_treestring( args.jplace_file ) )
 
-    # for all reference edges (that have results)s
+    # for all reference edges (that have results)
     for d in edge_list:
         d = os.path.join(args.work_dir, d, "delimit")
 
