@@ -4,9 +4,9 @@ import argparse
 import os
 import sys
 import glob
-import util
-from concurrent.futures import ProcessPoolExecutor
-from multiprocessing import Pool
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+import scripts.util as util
 
 # a wrapper script to parallelize many calls to mptp, using threading or MPI, depending on how it was called
 
@@ -109,6 +109,8 @@ def run_func( edge_dir, args ):
         mptp_chk_file = os.path.join( mptp_out_dir, "mptp_cmd.txt" )
         mptp_out_file = os.path.join( mptp_out_dir, "mptp_log.txt" )
 
+        paths = util.subprogram_commands()
+
         mptp_cmd = [
             paths[ "mptp" ],
             "--tree_file", tree,
@@ -128,43 +130,36 @@ def run_func( edge_dir, args ):
             err_file_path=mptp_out_file,
             verbose=args.verbose
         ) ):
-            raise RuntimeError( "mptp has failed!" )
+            raise RuntimeError( "mptp has failed! (log: " + mptp_out_file + ")" )
 
     return 0
 
-if __name__ == "__main__" and is_master():
-    paths = util.subprogram_commands()
+if __name__ == "__main__":
     args = command_line_args()
 
     threads = args.threads
     if threads < 1:
         raise RuntimeError( "Invalid number of threads: {}".format(threads) )
 
-    do_threading = True
     # set up the execution pool, use MPI if available and called with mpiexec
     try:
         from mpi4py import MPI
-        comm_size = MPI.COMM_WORLD.Get_size()
-        if comm_size > 1:
-            from mpi4py.futures import MPIPoolExecutor
-            print "setting up MPIPoolExecutor, size ",comm_size
-            executor = MPIPoolExecutor(max_workers=comm_size)
-            futures = []
-            for edge_dir in args.edge_dirs:
-                futures.append( executor.submit( run_func, edge_dir, args ) )
+        from mpi4py.futures import MPIPoolExecutor
+        print "setting up MPIPoolExecutor, size ",threads
+        executor = MPIPoolExecutor(max_workers=threads)
+        futures = []
+        for edge_dir in args.edge_dirs:
+            futures.append( executor.submit( run_func, edge_dir, args ) )
 
-            # wait for all processes to return
-            for f in futures:
-                if f.result() > 0:
-                    raise RuntimeError( "mptp has failed!" )
-            do_threading = False
-        else:
-            executor = ProcessPoolExecutor(max_workers=threads)
-            pool = Pool(processes=threads)
+        # wait for all processes to return
+        for f in futures:
+            if f.result() > 0:
+                raise RuntimeError( "mptp has failed! " + f.result() )
     except ImportError:
+        from concurrent.futures import ProcessPoolExecutor
+        from multiprocessing import Pool
+        executor = ProcessPoolExecutor(max_workers=threads)
         pool = Pool(processes=threads)
-
-    if do_threading:
         results = [pool.apply_async( run_func, args=(edge_dir, args)) for edge_dir in args.edge_dirs]
         for result in results:
             if result.get() > 0:

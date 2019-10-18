@@ -18,8 +18,6 @@ FNULL = open(os.devnull, 'wb')
 #     Command Line Args
 # ==================================================================================================
 
-pardec_method = 'processes'
-
 def command_line_args_parser():
     """
     Return an instance of argparse that can be used to process command line arguemnts.
@@ -112,6 +110,12 @@ def command_line_args_parser():
         action='store', dest='parallel',
         choices=[ "threads", "mpi" ],
         default="threads"
+    )
+
+    parser.add_argument(
+        '--mpi-args',
+        help="Optional flags to pass to mpirun.",
+        action='store', dest='mpiargs'
     )
 
     parser.add_argument(
@@ -330,10 +334,9 @@ if __name__ == "__main__":
     pargenes_chk_file = os.path.join( args.work_dir, "pargenes_cmd.txt" )
     pargenes_out_file = os.path.join( args.work_dir, "pargenes_log.txt" )
 
-    pargenes = os.path.join(base_dir_, "deps/ParGenes/pargenes/pargenes.py")
 
     pargenes_out = os.path.join( args.work_dir, "pargenes_out" )
-    os.mkdir(pargenes_out)
+    mkdirp(pargenes_out)
 
     if (args.protein):
         datatype = 'aa'
@@ -350,8 +353,10 @@ if __name__ == "__main__":
 
     if ( args.parallel == "threads" ):
         parallel = "fork"
+        pargenes = os.path.join(base_dir_, "deps/ParGenes/pargenes/pargenes.py")
     elif ( args.parallel == "mpi"):
         parallel = "split"
+        pargenes = os.path.join(base_dir_, "deps/ParGenes/pargenes/pargenes-hpc.py")
 
     pargenes_cmd = ["python2", pargenes,
         "--alignments-dir", pargenes_msas_dir,

@@ -70,15 +70,16 @@ def call_with_check_file(
         return success
 
 def call_wrapped( name, edge_list, args, extra=[] ):
-    cmd = ["mpiexec", str(args.num_threads)] if args.parallel == "mpi" else []
+    cmd = ["mpirun", "-n", "1", "--oversubscribe"]  if args.parallel == "mpi" else []
+    if args.mpiargs:
+        cmd.extend( args.mpiargs.split(" ") )
 
     wrapper = os.path.join(scripts_dir_, "{}_wrap.py".format( name ))
     assert os.path.isfile( wrapper )
     assert os.access( wrapper, os.X_OK )
 
     cmd.extend([ wrapper, "--work-dir", args.work_dir ])
-    if args.parallel == "threads":
-        cmd.extend(["--threads", str(args.num_threads)])
+    cmd.extend(["--threads", str(args.num_threads)])
     if args.seed:
         cmd.extend(["--seed", str(args.seed)])
     if args.verbose:
