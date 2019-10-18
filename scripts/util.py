@@ -3,6 +3,7 @@ import platform
 import subprocess as sub
 import urllib2
 import time
+from collections import OrderedDict
 
 scripts_dir_ = os.path.dirname( os.path.realpath(__file__) )
 
@@ -116,15 +117,16 @@ basedir = os.path.abspath( os.path.realpath( os.path.join(
 # We currently expect all sub-programs to be located in sub-directories of our tool.
 # Maybe this should go into a config file which also allows to use actual commands,
 # in case that raxml-ng or mptp is actually installed on the system already.
-prog_paths = {
-    "alignment_splitter" : [basedir + "/genesis/bin/apps/"],
-    "get_rooting"        : [basedir + "/genesis/bin/apps/"],
-    "phy2fasta"          : [basedir + "/genesis/bin/apps/"],
-    "msa_bootstrap"      : [basedir + "/genesis/bin/apps/"],
-    "mptp"               : [basedir + "/mptp/bin/"],
-    "pargenes"           : [basedir + "/ParGenes/is_installed_"],
-    "raxml-ng"           : [basedir + "/ParGenes/raxml-ng/bin/"]
-}
+prog_paths = OrderedDict([
+    ("pargenes",           [basedir + "/ParGenes/is_installed_"]),
+    ("raxml-ng",           [basedir + "/ParGenes/raxml-ng/bin/"]),
+    ("libgenesis.so",      [basedir + "/genesis/bin/"]),
+    ("alignment_splitter", [basedir + "/genesis/bin/apps/"]),
+    ("get_rooting",        [basedir + "/genesis/bin/apps/"]),
+    ("phy2fasta",          [basedir + "/genesis/bin/apps/"]),
+    ("msa_bootstrap",      [basedir + "/genesis/bin/apps/"]),
+    ("mptp",               [basedir + "/mptp/bin/"])
+])
 
 FNULL = open(os.devnull, 'wb')
 
@@ -197,7 +199,7 @@ def try_resolve_raxmlng(machine = get_platform()):
 
     (oper, arch, intrin) = machine
 
-    raxmldir = os.path.join(basedir, "raxml-ng")
+    raxmldir = os.path.join(basedir, "ParGenes/raxml-ng")
 
     sub.call(["mkdir", "-p", os.path.join(raxmldir, "build")], stdout=FNULL)
     sub.call(["cmake", ".."], cwd=os.path.join(raxmldir, "build"), stdout=FNULL)
@@ -230,6 +232,11 @@ def try_resolve_mptp(machine = get_platform()):
     sub.call([os.path.join(mptpdir, "autogen.sh")], cwd=mptpdir, stdout=FNULL)
     sub.call([os.path.join(mptpdir, "configure")], cwd=mptpdir, stdout=FNULL)
     return sub.call(["make", "-C", mptpdir], stdout=FNULL)
+
+def try_resolve_genesis(machine = get_platform()):
+    genesisdir = os.path.join(basedir, "genesis")
+    # make genesis
+    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
 
 def try_resolve_alignment_splitter(machine = get_platform()):
     genesisdir = os.path.join(basedir, "genesis")
@@ -277,6 +284,8 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_raxmlng( machine )
     elif name == "mptp":
         return try_resolve_mptp( machine )
+    elif name == "libgenesis.so":
+        return try_resolve_genesis( machine )
     elif name == "alignment_splitter":
         return try_resolve_alignment_splitter( machine )
     elif name == "get_rooting":
@@ -300,7 +309,7 @@ def subprogram_commands():
     Return a list of the sub program commands.
     """
 
-    paths = {}
+    paths = OrderedDict()
 
     for name, etc in prog_paths.iteritems():
         paths[name] = etc[0] + name
