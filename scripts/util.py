@@ -224,6 +224,8 @@ def try_resolve_raxmlng(machine = get_platform()):
 
 def try_resolve_mptp(machine = get_platform()):
     mptpdir = os.path.join(basedir, "mptp")
+    # modify the config file, disabling gsl
+    sub.call(["sed", "-i", '45,46 s/^/#/', "configure.ac"], cwd=mptpdir)
     # autogen, configure, make
     sub.call([os.path.join(mptpdir, "autogen.sh")], cwd=mptpdir, stdout=FNULL)
     sub.call([os.path.join(mptpdir, "configure")], cwd=mptpdir, stdout=FNULL)
