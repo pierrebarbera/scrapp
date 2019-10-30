@@ -466,6 +466,8 @@ int main( int argc, char** argv )
         LOG_DBG << "Filtered out " << removed << " Pqueries due to min weight threshold.";
     }
 
+    merge_duplicates( sample );
+
     // Get the pqueries per edge.
     auto pqrs_per_edge = pqueries_per_edge( sample, true );
     assert( pqrs_per_edge.size() == sample.tree().edge_count() );
@@ -560,25 +562,22 @@ int main( int argc, char** argv )
                 LOG_WARN << "Pquery with multiple names. This warning is just in case.";
             }
 
+            // Find the sequence associated with the first label of the pquery (we only want one representative)
+            auto seq_id = seq_label_map[ pqry_ptr->name_at(0).name ];
+
             for( auto const& pqry_name : pqry_ptr->names() ) {
                 if( seq_label_map.count( pqry_name.name ) == 0 ) {
                     LOG_WARN << "No sequence found for Pquery '" << pqry_name.name << "'.";
                     continue;
                 }
 
-                // Add the sequence of the current name to the seq set of this edge.
-                auto seq_id = seq_label_map[ pqry_name.name ];
+                // update abundance accounting for current extra sequence label
+                auto abund = seqs[ seq_id ].abundance();
+                seqs[ seq_id ].abundance( abund + pqry_name.multiplicity );
 
-                // if the abundance info wasnt in the original msa, and the seq hasnt had its abundance adjusted
-                if ( not alignment_had_adundance
-                    and seqs[ seq_id ].abundance() <= 1) {
-                    // update abundance from jplace
-                    seqs[ seq_id ].abundance( pqry_name.multiplicity );
-                }
-
-                edge_seqs[ edge_index ].add( seqs[ seq_id ] );
                 ++finished_labels[ pqry_name.name ];
             }
+            edge_seqs[ edge_index ].add( seqs[ seq_id ] );
         }
 
         // if outgroup inclusion was selected, add that taxon to the set (with a little renaming for clarity)
