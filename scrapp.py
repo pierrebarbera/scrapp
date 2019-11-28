@@ -432,7 +432,8 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     #     Species Delimitation
     # -------------------------------------------------------------------------
-    runtimes += call_wrapped( "mptp", edge_list, args )
+    extra = ["--no-cleanup"] if not args.cleanup else []
+    runtimes += call_wrapped( "mptp", edge_list, args, extra )
 
     # -------------------------------------------------------------------------
     #     Summarize Delimitation Results

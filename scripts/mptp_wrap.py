@@ -63,6 +63,13 @@ def command_line_args_parser():
     )
 
     parser.add_argument(
+        "--no-cleanup",
+        help="Specify if all intermediate files should be kept (potentially thousands!).",
+        action="store_false",
+        dest='cleanup'
+    )
+
+    parser.add_argument(
         "--verbose",
         help="Increase output verbosity.",
         action="store_true"
@@ -131,6 +138,10 @@ def run_func( edge_dir, args ):
             verbose=args.verbose
         ) ):
             raise RuntimeError( "mptp has failed! (log: " + mptp_out_file + ")" )
+
+        # clean up
+        if args.cleanup:
+            os.rmdir( os.path.join( mptp_out_dir ) )
 
     return 0
 
