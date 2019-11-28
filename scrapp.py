@@ -141,6 +141,13 @@ def command_line_args_parser():
         action="store_true"
     )
 
+    parser.add_argument(
+        "--no-cleanup",
+        help="Specify if all intermediate files should be kept (potentially thousands!).",
+        action="store_false",
+        dest='cleanup'
+    )
+
     # Add min weight arg, restricted to a certain range, also optional.
     def min_weight_float(x):
         x = float(x)
@@ -401,12 +408,18 @@ if __name__ == "__main__":
             # print "copy ", filename, " to ", pargenes_out_dir
             mkdirp( pargenes_out_dir )
             shutil.copy( filename, pargenes_out_dir )
+    # post-pargenes cleanup
+    if args.cleanup:
+        os.rmdir( pargenes_msas_dir )
+        os.rmdir( pargenes_out_dir )
 
     # -------------------------------------------------------------------------
     #     Mode 1: Variance by bootstrap
     # -------------------------------------------------------------------------
     if args.bootstrap:
         extra = ["--model", model, "--num-replicates", str(args.num_reps) ]
+        if not cleanup:
+            extra.extend(["--no-cleanup"])
         runtimes += call_wrapped( "msa_bootstrap", edge_list, args, extra )
     # -------------------------------------------------------------------------
     #     Mode 2: Variance by different rootings

@@ -82,6 +82,13 @@ def command_line_args_parser():
     )
 
     parser.add_argument(
+        "--no-cleanup",
+        help="Specify if all intermediate files should be kept (potentially thousands!).",
+        action="store_false",
+        dest='cleanup'
+    )
+
+    parser.add_argument(
         "--model",
         help="Model to use.",
         action="store",
@@ -110,6 +117,8 @@ def command_line_args():
     return args
 
 def run_func( edge_dir, args ):
+    # TODO to minimize concurrent disk footprint: generate single BS MSA just before evaluation, using raxml-ng --bsmsa
+
     bs_reps_out_dir = os.path.join( args.work_dir, edge_dir, "bs_rep_msas" )
     bs_reps_chk_file = os.path.join( bs_reps_out_dir, "bs_reps_cmd.txt" )
     bs_reps_out_file = os.path.join( bs_reps_out_dir, "bs_reps_log.txt" )
@@ -151,7 +160,6 @@ def run_func( edge_dir, args ):
         trees_eval_chk_file = os.path.join( trees_eval_out_dir, name + "_eval_cmd.txt" )
 
         # reevaluate the tree under this bootstrapped MSA
-
         trees_eval_cmd = [
             paths[ "raxml-ng" ],
             "--evaluate",
@@ -170,6 +178,10 @@ def run_func( edge_dir, args ):
             verbose=args.verbose
         ) ):
             raise RuntimeError( "trees_eval has failed!" )
+
+        # clean up BS MSA
+        if args.cleanup:
+            os.remove( rep_msa )
 
         # rename the resulting tree
         sub.call(["ln", "-s", os.path.join( trees_eval_out_dir, name + ".raxml.bestTree" ),
