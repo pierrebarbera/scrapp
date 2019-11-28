@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
 
 	// Check if the command line contains the right number of arguments.
     if( argc != 3 ) {
-        LOG_INFO << "Usage: " << argv[0] << " <msa_file> <output_dir>";
+        LOG_INFO << "Usage: " << argv[0] << " <msa_file> <output_dir> <num_reps>";
         return 1;
     }
 
@@ -31,6 +31,12 @@ int main(int argc, char* argv[]) {
 	}
 	out_dir = dir_normalize_path( out_dir );
 
+    int const num_reps = std::atoi( argv[3] );
+    if( num_reps < 1 ) {
+        throw std::runtime_error{
+            std::string("Invalid number of replicates: ") + std::to_string( num_reps )
+        };
+    }
 
     // read MSA
     SequenceSet seqs;
@@ -64,7 +70,7 @@ int main(int argc, char* argv[]) {
     std::uniform_int_distribution<> dis(0, width - 1u);
 
     // generate desired number of MSA replicates
-    for (size_t replicate = 0; replicate < 100; ++replicate) {
+    for (size_t replicate = 0; replicate < static_cast<size_t>( num_reps ); ++replicate) {
         std::ofstream cur_out_file( out_dir + "replicate_" + std::to_string( replicate ) + ".fasta" );
         FastaOutputIterator out( cur_out_file );
 

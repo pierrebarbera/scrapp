@@ -73,6 +73,15 @@ def command_line_args_parser():
     )
 
     parser.add_argument(
+        '--bootstrap-num-replicates',
+        help="Number of replicates to generate for each valid edge when using bootstrap mode.",
+        action='store',
+        dest='num_reps',
+        type=int,
+        default=20
+    )
+
+    parser.add_argument(
         '--min-queries',
         help="If an edge contains a number of unique queries below this value, ignore the edge.",
         action='store',
@@ -397,7 +406,7 @@ if __name__ == "__main__":
     #     Mode 1: Variance by bootstrap
     # -------------------------------------------------------------------------
     if args.bootstrap:
-        extra = ["--model", model]
+        extra = ["--model", model, "--num-replicates", str(args.num_reps) ]
         runtimes += call_wrapped( "msa_bootstrap", edge_list, args, extra )
     # -------------------------------------------------------------------------
     #     Mode 2: Variance by different rootings

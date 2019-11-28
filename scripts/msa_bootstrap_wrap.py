@@ -67,6 +67,15 @@ def command_line_args_parser():
     )
 
     parser.add_argument(
+        '--num-replicates',
+        help="Number of bootstrap replicates to generate.",
+        action='store',
+        dest='num_reps',
+        default=20,
+        type=int
+    )
+
+    parser.add_argument(
         "--verbose",
         help="Increase output verbosity.",
         action="store_true"
@@ -112,7 +121,8 @@ def run_func( edge_dir, args ):
     bs_reps_cmd = [
         paths[ "msa_bootstrap" ],
         msa,
-        bs_reps_out_dir
+        bs_reps_out_dir,
+        str( args.num_reps )
     ]
 
     if ( not util.call_with_check_file(
