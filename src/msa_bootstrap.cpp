@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
     LOG_INFO << "Started";
 
 	// Check if the command line contains the right number of arguments.
-    if( argc != 3 ) {
+    if( argc != 4 ) {
         LOG_INFO << "Usage: " << argv[0] << " <msa_file> <output_dir> <num_reps>";
         return 1;
     }

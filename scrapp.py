@@ -6,7 +6,7 @@ import os
 import subprocess as sub
 import sys
 import scripts.util as util
-from scripts.util import call_wrapped, call_with_check_file
+from scripts.util import call_wrapped, call_with_check_file, clean_dir, mkdirp
 import time
 import pprint
 
@@ -231,10 +231,6 @@ def command_line_args():
 #     Helper Functions
 # ==================================================================================================
 
-def mkdirp( path ):
-    if not os.path.exists( path ):
-        os.mkdir( path )
-
 def get_treestring( jplace_path ):
     cmd = ["awk", "-F", "\"", '''{if($2=="tree"){printf "%s", $4;}}''', jplace_path ]
     # print "Tree-getting commandline is %s" % sub.list2cmdline(cmd)
@@ -352,7 +348,7 @@ if __name__ == "__main__":
 
 
     pargenes_out = os.path.join( args.work_dir, "pargenes_out" )
-    mkdirp(pargenes_out)
+    mkdirp( pargenes_out )
 
     if (args.protein):
         datatype = 'aa'
@@ -401,24 +397,24 @@ if __name__ == "__main__":
 
     # copy the results back to their appropriate directories
     for edge_dir in edge_list:
-        pargenes_out_dir = os.path.join( args.work_dir, edge_dir, "search/" )
+        edge_search_dir = os.path.join( args.work_dir, edge_dir, "search/" )
         edge_string = edge_dir.split("/")[-2]
         res = os.path.join( pargenes_out, "mlsearch_run/results", edge_string + "_fasta" )
         for filename in glob.glob(os.path.join(res, "*.*")):
-            # print "copy ", filename, " to ", pargenes_out_dir
-            mkdirp( pargenes_out_dir )
-            shutil.copy( filename, pargenes_out_dir )
+            # print "copy ", filename, " to ", edge_search_dir
+            mkdirp( edge_search_dir )
+            shutil.copy( filename, edge_search_dir )
     # post-pargenes cleanup
     if args.cleanup:
-        os.rmdir( pargenes_msas_dir )
-        os.rmdir( pargenes_out_dir )
+        clean_dir( pargenes_msas_dir )
+        clean_dir( pargenes_out )
 
     # -------------------------------------------------------------------------
     #     Mode 1: Variance by bootstrap
     # -------------------------------------------------------------------------
     if args.bootstrap:
         extra = ["--model", model, "--num-replicates", str(args.num_reps) ]
-        if not cleanup:
+        if not args.cleanup:
             extra.extend(["--no-cleanup"])
         runtimes += call_wrapped( "msa_bootstrap", edge_list, args, extra )
     # -------------------------------------------------------------------------

@@ -4,8 +4,17 @@ import subprocess as sub
 import urllib2
 import time
 from collections import OrderedDict
+from shutil import rmtree
 
 scripts_dir_ = os.path.dirname( os.path.realpath(__file__) )
+
+def clean_dir( path ):
+    if os.path.exists( path ):
+        rmtree( path, ignore_errors=True )
+
+def mkdirp( path ):
+    if not os.path.exists( path ):
+        os.mkdir( path )
 
 def call_with_check_file(
     cmd_to_call,
@@ -100,7 +109,7 @@ def call_wrapped( name, edge_list, args, extra=[] ):
         err_file_path=out_file,
         verbose=args.verbose
     ) ):
-        raise RuntimeError( "{}_wrap has failed!".format( name ) )
+        raise RuntimeError( "{}_wrap has failed! ({})".format( name, out_file ) )
     runtime = time.time() - runtime
     return {"name":name, "time":runtime}
 

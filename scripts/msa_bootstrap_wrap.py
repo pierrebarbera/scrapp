@@ -141,7 +141,7 @@ def run_func( edge_dir, args ):
         err_file_path=bs_reps_out_file,
         verbose=args.verbose
     ) ):
-        raise RuntimeError( "get_all_bs_reps has failed!" )
+        raise RuntimeError( "get_all_bs_reps has failed! (" + bs_reps_out_file + ")" )
 
     trees_eval_out_dir = os.path.join( args.work_dir, edge_dir, "trees")
     trees_eval_out_file = os.path.join( trees_eval_out_dir, "bs_reps_log.txt" )

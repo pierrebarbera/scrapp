@@ -141,7 +141,7 @@ def run_func( edge_dir, args ):
 
         # clean up
         if args.cleanup:
-            os.rmdir( os.path.join( mptp_out_dir ) )
+            os.remove( os.path.join( mptp_out_dir, "mptp_result.svg" ) )
 
     return 0
 
