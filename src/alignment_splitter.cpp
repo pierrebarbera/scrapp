@@ -468,6 +468,30 @@ int main( int argc, char** argv )
 
     merge_duplicates( sample );
 
+    // fix names in sample
+    std::ofstream rename_map_file( output_dir + "label_map.tsv" );
+    bool sanitation_happened = false;
+    for( auto& pq : sample ) {
+        for( auto& pqry_name : pq.names() ) {
+            auto& name = pqry_name.name;
+
+            if( not is_valid_label( name ) ) {
+                auto new_name = sanitize_label( name );
+                // write out mapping
+                rename_map_file << new_name << "\t" << name << "\n";
+
+                pqry_name.name = new_name;
+
+                sanitation_happened = true;
+                LOG_WARN << name << " renamed to " << new_name;
+            }
+        }
+    }
+    if( sanitation_happened ) {
+        LOG_INFO << "Some taxa label were found to have invalid characters. They were fixed and a mapping from new to old can be found in file: "
+                 << output_dir + "label_map.tsv";
+    }
+
     // Get the pqueries per edge.
     auto pqrs_per_edge = pqueries_per_edge( sample, true );
     assert( pqrs_per_edge.size() == sample.tree().edge_count() );
@@ -478,6 +502,8 @@ int main( int argc, char** argv )
     // always read in the whole file. Might be worth improving in the future.
     SequenceSet seqs = read_any_seqfile( query_alignment );
 
+
+
     // Input check.
     if( not is_alignment( seqs )) {
         LOG_ERR << "Alignment file contains sequences of different length, i.e., it is not an alignment.";
@@ -487,6 +513,9 @@ int main( int argc, char** argv )
     // dereplicate
     // LOG_INFO << "Dereplicating sequences.";
     // merge_duplicates( seqs );
+
+    // fix names in seqs
+    sanitize_labels( seqs );
 
     // after dereplication we add the ref seqs, if specified
     SequenceSet ref_seqs;
