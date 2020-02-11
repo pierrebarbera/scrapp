@@ -464,6 +464,12 @@ if __name__ == "__main__":
     with open(os.path.join( args.work_dir, "summary.newick" ), "w+") as f:
         f.write( output.annotated_tree("species-count", "count_median", alias_name="species_count") )
 
+    # bootstrap mode cleanup to prevent millions of files
+    if args.bootstrap and args.cleanup:
+        for d in edge_list:
+            clean_dir( os.path.join( d, "trees" ) )
+            clean_dir( os.path.join( d, "delimit" ) )
+
     print "Finished!"
     if args.verbose:
         pp.pprint( runtimes )
