@@ -46,6 +46,7 @@ def command_line_args_parser():
     parser = argparse.ArgumentParser(
         description="Script that uses msprime to generate trees to be used with the scrapp sim stack"
     )
+    parser_required_named_arg_group = parser.add_argument_group('required named arguments')
 
     parser.add_argument(
         '--out-dir',
@@ -56,7 +57,7 @@ def command_line_args_parser():
         default="."
     )
 
-    parser.add_argument(
+    parser_required_named_arg_group.add_argument(
         '--tree',
         help="The 'true' tree. (newick)",
         action='store',
@@ -65,7 +66,7 @@ def command_line_args_parser():
         required=True
     )
 
-    parser.add_argument(
+    parser_required_named_arg_group.add_argument(
         '--msa',
         help="The corresponding MSA to be split into ref and query set. (fasta)",
         action='store',
@@ -74,8 +75,6 @@ def command_line_args_parser():
         required=True
     )
 
-
-    # Add optional args.
     parser.add_argument(
         '--seed',
         help="Seed for the RNG.",
@@ -277,8 +276,12 @@ ref_tree = true_tree.copy()
 
 # then randomly reassign some of them as query
 N = len( ref_map )
-x=10
-k=int( QUERY_FRACT * N ) / x
+# x=10
+# k=int( QUERY_FRACT * N ) / x
+
+k=4
+x=int( QUERY_FRACT * N ) / k
+
 seeds = rd.choice( ref_map.keys(), size=k, replace=False )
 
 if log: print "N = {}".format( N )
@@ -291,7 +294,8 @@ num_remove_query=0
 for key in seeds:
     # print "Seed:   ",key
     # draw a random radius between 2 and x / 2
-    radius = rd.randint(2, (x/2) + 1)
+    # radius = rd.randint(2, (x/2) + 1)
+    radius = x/2
     # print "Radius: ",radius
     advance_right=True
     advance_left=True

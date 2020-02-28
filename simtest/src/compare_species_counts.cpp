@@ -163,7 +163,8 @@ std::vector<double> calc_per_edge_errors( Tree const& lhs, Tree const& rhs, per_
         auto lhs_sc = lhs_it.edge().data<ScrappEdgeData>().species_count;
         auto rhs_sc = rhs_it.edge().data<ScrappEdgeData>().species_count;
 
-        if ( rhs_sc != 0.0 or allow_zero ) {
+        // if ( rhs_sc != 0.0 or allow_zero ) {
+        if ( rhs_sc != 0.0 or lhs_sc != 0.0 ) {
             auto diff = func(lhs_sc, rhs_sc);
 
             per_edge_error.emplace_back( diff );
@@ -205,13 +206,6 @@ void normalize_species_counts( Tree& tree )
 
     for( auto& edge : tree.edges() ) {
         edge.data<ScrappEdgeData>().species_count = ( edge.data<ScrappEdgeData>().species_count ) / total;
-    }
-}
-
-void modify_species_counts( Tree& tree )
-{
-    for( auto& edge : tree.edges() ) {
-        edge.data<ScrappEdgeData>().species_count = edge.data<ScrappEdgeData>().species_count * 1.0;
     }
 }
 
@@ -277,14 +271,14 @@ int main( int argc, char** argv )
     mass_tree_normalize_masses( mass_trees[1] );
 
     auto const norm_krd = earth_movers_distance( mass_trees[0], mass_trees[1] );
-    auto const norm_norm_krd = norm_krd / length( mass_trees[0] );
+    auto const norm_norm_krd = norm_krd / diameter( mass_trees[0] );
 
     if ( csv_mode ) {
         std::cout   << norm_krd << sep;
         std::cout   << norm_norm_krd << sep;
     } else {
         std::cout   << "normalized KRD: " << norm_krd << std::endl;
-        std::cout   << "normalized KRD, normalized by tree length: "
+        std::cout   << "normalized KRD, normalized by tree diameter: "
                     << norm_norm_krd << std::endl;
     }
 
@@ -299,8 +293,6 @@ int main( int argc, char** argv )
     } else {
         std::cout << "normalized KRD, unit branch lengths: " << norm_unit_krd << std::endl;
     }
-
-    modify_species_counts( scrapp_tree );
 
     per_edge_func abs_diff_func = [](double l, double r){return std::abs(l - r);};
 
@@ -386,6 +378,18 @@ int main( int argc, char** argv )
         std::cout << "\tmedian:\t" << med << std::endl;
         std::cout << "\tmin:\t" << minmax.min << std::endl;
         std::cout << "\tmax:\t" << minmax.max << std::endl;
+    }
+
+    // relative normalized
+    per_edge_errors = calc_per_edge_errors( scrapp_tree, true_tree, rel_diff_func );
+
+    error_sum = std::accumulate( std::begin(per_edge_errors), std::end(per_edge_errors), 0.0);
+    minmax = minimum_maximum( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    meanstddev = mean_stddev( std::begin(per_edge_errors), std::end(per_edge_errors) );
+    med = median( std::begin(per_edge_errors), std::end(per_edge_errors) );
+
+    if ( csv_mode ) {
+        std::cout << sep <<  meanstddev.mean;
     }
 
     // if ( csv_mode ) {

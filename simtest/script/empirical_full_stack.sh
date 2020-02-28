@@ -8,67 +8,68 @@ TREE=${BASE}/tree/reference.newick
 MODEL=${BASE}/tree/eval.raxml.bestModel
 JPLACE=${BASE}/placed/epa_result.jplace
 SC=${BASE}/script
+RUNS_DIR=/data/barberpe/scrapp/runs
+
 
 NUM_THREADS=40
 SEED=4242
 
-RESULT_CSV="empirical_results.csv"
+RESULT_CSV="results_empirical.csv"
 
 echo "start at `date`"
 
 cd ${SC}
 
 # set -e
+
 # write the csv header
-# echo "run,seq_length,mut_rate,species,sample_size,pop_size,prune_fract,krd,norm_krd,norm_norm_krd,norm_unit_krd,abs_err_sum,abs_err_mean,abs_err_med,rel_err_sum,rel_err_mean,rel_err_med,norm_err_sum,norm_err_mean,norm_err_med" > ${RESULT_CSV}
-echo "run,scrapp_mode,query_fract,rarify_fract,krd,norm_krd,norm_norm_krd,norm_unit_krd,abs_err_sum,abs_err_mean,abs_err_med,rel_err_sum,rel_err_mean,rel_err_med,norm_err_sum,norm_err_mean,norm_err_med" > ${RESULT_CSV}
+echo "run,query_fract,rarify_fract,scrapp_mode,krd,norm_krd,norm_norm_krd,norm_unit_krd,abs_err_sum,abs_err_mean,abs_err_med,rel_err_sum,rel_err_mean,rel_err_med,norm_err_sum,norm_err_mean,norm_err_med,rel_norm_err_mean" > ${RESULT_CSV}
 
 run=0
-for scrapp_mode in rootings bootstrap outgroup; do
-  for query_fract in 0.25 0.5; do
-    for rarify_fract in 0.25 0.5; do
+for query_fract in 0.5; do
+  for rarify_fract in 0.25 0.5; do
+    for scrapp_mode in rootings bootstrap outgroup; do
       for i in {0..4}; do
         echo "Starting run ${run}!"
 
-        # scrapp_mode=rootings
-
-        SCRAPP_SIM_CURDIR=${BASE}/runs/empirical/scrapp_mode_${scrapp_mode}/query_fract_${query_fract}/rarify_fract_${rarify_fract}/iter_${i}
+        SCRAPP_SIM_CURDIR=${RUNS_DIR}/empirical/query_fract_${query_fract}/rarify_fract_${rarify_fract}/scrapp_mode_${scrapp_mode}/iter_${i}
         export SCRAPP_SIM_CURDIR
-        rm -r ${SCRAPP_SIM_CURDIR}/* 2> /dev/null
+        # mkdir -p ${SCRAPP_SIM_CURDIR}
+        # rm -r ${SCRAPP_SIM_CURDIR}/* 2> /dev/null
 
-        printf "${run},${scrapp_mode},${query_fract},${rarify_fract}," >> ${RESULT_CSV}
+        printf "${run},${query_fract},${rarify_fract},${scrapp_mode}," >> ${RESULT_CSV}
 
-        # echo "  generate the tree..."
-        ./split_empirical.sh --rarify ${rarify_fract} --query ${query_fract}
-        # echo "  tree done!"
+        # # echo "  generate the tree..."
+        # ./split_empirical.sh --rarify ${rarify_fract} --query ${query_fract}
+        # # echo "  tree done!"
 
-        # infer model params
-        # echo "  infer model params..."
-        #  --blmin 1e-7 --blmax 5000
-        ./eval_reftree.sh --threads ${NUM_THREADS} --seed --opt-branches off --force perf 1> /dev/null
-        # echo "  model params done!"
+        # # infer model params
+        # # echo "  infer model params..."
+        # #  --blmin 1e-7 --blmax 5000
+        # ./eval_reftree.sh --threads ${NUM_THREADS} --opt-branches off --force perf 1> /dev/null
+        # # echo "  model params done!"
 
-        # run placement
-        # echo "  place..."
-        ./epa.sh --threads ${NUM_THREADS} 1> /dev/null
-        # echo "  placement done!"
+        # # run placement
+        # # echo "  place..."
+        # ./epa.sh --threads ${NUM_THREADS} 1> /dev/null
+        # # echo "  placement done!"
 
-        # run scrapp
-        # echo "  running scrapp..."
-        case "${scrapp_mode}" in
-          rootings )
-            ./scrapp.sh --num-threads ${NUM_THREADS} --seed ${SEED} 1> /dev/null
-            ;;
-          bootstrap )
-            ./scrapp.sh --num-threads ${NUM_THREADS} --seed ${SEED} --bootstrap 1> /dev/null
-            ;;
-          outgroup )
-            ./scrapp.sh --num-threads ${NUM_THREADS} --ref-align-outgrouping ${SCRAPP_SIM_CURDIR}/msa/reference.fasta 1> /dev/null
-            ;;
-          *)
-            echo "invalid scrapp_mode, aborting"
-            exit 1
-        esac
+        # # run scrapp
+        # # echo "  running scrapp..."
+        # case "${scrapp_mode}" in
+        #   rootings )
+        #     ./scrapp.sh --num-threads ${NUM_THREADS} > ${SCRAPP_SIM_CURDIR}/scrapp_log.txt
+        #     ;;
+        #   bootstrap )
+        #     ./scrapp.sh --num-threads ${NUM_THREADS} --bootstrap > ${SCRAPP_SIM_CURDIR}/scrapp_log.txt
+        #     ;;
+        #   outgroup )
+        #     ./scrapp.sh --num-threads ${NUM_THREADS} --ref-align-outgrouping ${SCRAPP_SIM_CURDIR}/msa/reference.fasta > ${SCRAPP_SIM_CURDIR}/scrapp_log.txt
+        #     ;;
+        #   *)
+        #     echo "invalid scrapp_mode, aborting"
+        #     exit 1
+        # esac
         # echo "  scrapp done!"
 
         # print statistic
@@ -78,6 +79,7 @@ for scrapp_mode in rootings bootstrap outgroup; do
         # echo "  statistic done!"
 
         let run+=1
+        # exit
       done # runs
     done # rarify_fract
   done # query_fract

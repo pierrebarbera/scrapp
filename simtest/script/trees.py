@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # Copyright (C)2019 Pierre Barbera
 
@@ -194,7 +194,7 @@ def prune_node( tree, ref_map, node ):
         node.up.children[ target_id ].support += count
 
     # node is already gone in the ref_map
-    assert node.name not in ref_map.values()
+    assert node.name not in list(ref_map.values())
 
     # prune the tree
     node.delete(prevent_nondicotomic=True, preserve_branch_length=True)
@@ -244,11 +244,11 @@ PRUNE_FRACT=args.prune_fract
 #### simulate the tree
 import msprime
 pop_config = []
-for _ in xrange(n):
+for _ in range(n):
     pop_config.append( msprime.PopulationConfiguration(sample_size=SAMPLE_SIZE, initial_size=POP_SIZE) )
 
-migration_rate_mat = [ [MIGRATION_RATE]*n for _ in xrange(n) ]
-for i in xrange(n):
+migration_rate_mat = [ [MIGRATION_RATE]*n for _ in range(n) ]
+for i in range(n):
     migration_rate_mat[i][i] = 0
 
 Ne=POP_SIZE
@@ -299,16 +299,16 @@ ref_tree = true_tree.copy()
     # add the rest for the query set
 ref_map = defaultdict(list)
 qry_map = defaultdict(list)
-for k,v in pop_species_map.iteritems():
+for k,v in pop_species_map.items():
     ref = rd.randint(len(v), size=1)[0]
-    for i in xrange(len(v)):
+    for i in range(len(v)):
         if i == ref:
             ref_map[k].append( v[i] )
         else:
             qry_map[k].append( v[i] )
 
 # already prune out the query taxa
-ref_list=[v[0] for k,v in ref_map.iteritems()]
+ref_list=[v[0] for k,v in ref_map.items()]
 ref_tree.prune(ref_list, preserve_branch_length=True)
 
 #### NOW we need to account for the number of species per remaining taxa in the tree
@@ -319,7 +319,7 @@ for node in ref_tree.traverse(strategy='postorder'):
 #### randomly trim out another PRUNE_FRACT% from the ref set
 N = len( ref_map )
 num_remove_rarify=0
-for key in rd.choice( ref_map.keys(), int(N*PRUNE_FRACT), replace=False ):
+for key in rd.choice( list(ref_map.keys()), int(N*PRUNE_FRACT), replace=False ):
     prune_reference( ref_tree, ref_map, key )
     num_remove_rarify+=1
 
@@ -327,7 +327,7 @@ for key in rd.choice( ref_map.keys(), int(N*PRUNE_FRACT), replace=False ):
 total_support=0
 for node in ref_tree.traverse(strategy='postorder'):
     total_support += node.support
-total_pops = len(pop_species_map.keys())
+total_pops = len(list(pop_species_map.keys()))
 assert (len(ref_tree) + num_remove_rarify) == total_pops, "{} vs {}".format( len(ref_tree) + num_remove_rarify, total_pops)
 assert total_support == total_pops, "{} vs {}".format( total_support, total_pops)
 
