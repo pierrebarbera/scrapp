@@ -285,7 +285,7 @@ def try_resolve(name, machine = get_platform()):
         return try_resolve_raxmlng( machine )
     elif name == "mptp":
         return try_resolve_mptp( machine )
-    elif name == "libgenesis.so":
+    elif name == "libgenesis.a":
         return try_resolve_genesis( machine )
     elif name == "alignment_splitter":
         return try_resolve_alignment_splitter( machine )
