@@ -115,8 +115,12 @@ SET( mptp_COMMIT_HASH "ab45f55ecb3f1191f8b96a81feab3330dd6536b6" ) #mptp_COMMIT_
 SET( ParGenes_COMMIT_HASH "727196b7b84e37fbd702d46862a43775e64220a9" ) #ParGenes_COMMIT_HASH#
 SET( MPIScheduler_COMMIT_HASH "78519d1dcc66b207a445072a5e1571ce592fcf34" ) #MPIScheduler_COMMIT_HASH#
 SET( raxml-ng_COMMIT_HASH "7c2056c1527939c705b93c6dc67afb5a9926215e" ) #raxml-ng_COMMIT_HASH#
-SET( pll-modules_COMMIT_HASH "82959854129c05a18741ecb93a6ba5c00b9eb667" ) #pll-modules_COMMIT_HASH#
-SET( libpll_COMMIT_HASH "c5f63744743e4070a68da763899889bdb3ef4216" ) #libpll_COMMIT_HASH#
+SET( raxml-ng-pll-modules_COMMIT_HASH "82959854129c05a18741ecb93a6ba5c00b9eb667" ) #raxml-ng-pll-modules_COMMIT_HASH#
+SET( raxml-ng-libpll_COMMIT_HASH "c5f63744743e4070a68da763899889bdb3ef4216" ) #raxml-ng-libpll_COMMIT_HASH#
+SET( modeltest_COMMIT_HASH "832a56bd69da8f09e50b0d6964ca3c8a95666e88" ) #modeltest_COMMIT_HASH#
+SET( ASTRAL_COMMIT_HASH "ffe461ac1d3bb2047042af1a71871e624b42d5ba" ) #ASTRAL_COMMIT_HASH#
+SET( modeltest-pll-modules_COMMIT_HASH "a0d8633c20dd7bc1c8ba841883aab0313a00dfad" ) #modeltest-pll-modules_COMMIT_HASH#
+SET( modeltest-libpll_COMMIT_HASH "f8d598795b565486d26bb7d1f2c289076ab07e88" ) #modeltest-libpll_COMMIT_HASH#
 
 # Call the github download function, which takes four arguments:
 #  - LIBPATH    : Path to the libracy dir where dependencies are stored.
@@ -129,9 +133,12 @@ DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps" "mptp"  "README.md" "Pa
 DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps" "ParGenes"  "install.sh" "BenoitMorel/ParGenes"    ${ParGenes_COMMIT_HASH} )
 DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes" "raxml-ng"  "CMakeLists.txt" "amkozlov/raxml-ng"    ${raxml-ng_COMMIT_HASH} )
 DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes" "MPIScheduler"  "CMakeLists.txt" "BenoitMorel/MPIScheduler"    ${MPIScheduler_COMMIT_HASH} )
-DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes/raxml-ng/libs" "pll-modules"  "CMakeLists.txt" "ddarriba/pll-modules"    ${pll-modules_COMMIT_HASH} )
-DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes/raxml-ng/libs/pll-modules/libs" "libpll"  "CMakeLists.txt" "xflouris/libpll-2"    ${libpll_COMMIT_HASH} )
-
+DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes" "modeltest"  "CMakeLists.txt" "BenoitMorel/modeltest"    ${modeltest_COMMIT_HASH} )
+DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes" "ASTRAL"  "make.sh" "smirarab/ASTRAL"    ${ASTRAL_COMMIT_HASH} )
+DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes/raxml-ng/libs" "pll-modules"  "CMakeLists.txt" "ddarriba/pll-modules"    ${raxml-ng-pll-modules_COMMIT_HASH} )
+DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes/raxml-ng/libs/pll-modules/libs" "libpll"  "CMakeLists.txt" "xflouris/libpll-2"    ${raxml-ng-libpll_COMMIT_HASH} )
+DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes/modeltest/libs" "pll-modules"  "CMakeLists.txt" "ddarriba/pll-modules"    ${modeltest-pll-modules_COMMIT_HASH} )
+DOWNLOAD_GITHUB_DEPENDENCY( "${PROJECT_SOURCE_DIR}/deps/ParGenes/modeltest/libs/pll-modules/libs" "libpll"  "CMakeLists.txt" "xflouris/libpll-2"    ${modeltest-libpll_COMMIT_HASH} )
 # --------------------------------------------------------------------------------------------------
 #   Dependencies Settings
 # --------------------------------------------------------------------------------------------------

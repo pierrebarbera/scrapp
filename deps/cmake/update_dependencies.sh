@@ -61,6 +61,9 @@ function update_commit_hash() {
     local prefix=${2}
 
     get_commit_hash ${libname} ${prefix}
+
+    [ ! -z "$prefix" ] && libname=${prefix}-${libname}
+
     echo "${libname} @ ${commit_hash}"
 
     LINE="SET( ${libname}_COMMIT_HASH \"${commit_hash}\" ) #${libname}_COMMIT_HASH#"
@@ -78,3 +81,7 @@ update_commit_hash "MPIScheduler"
 update_commit_hash "raxml-ng"
 update_commit_hash "pll-modules" "raxml-ng"
 update_commit_hash "libpll" "raxml-ng"
+update_commit_hash "modeltest"
+update_commit_hash "pll-modules" "modeltest"
+update_commit_hash "libpll" "modeltest"
+update_commit_hash "ASTRAL"
