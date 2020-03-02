@@ -2,6 +2,7 @@
 
 import os
 import scripts.util as util
+import subprocess as sub
 
 def fatal(msg=""):
     if msg:
@@ -22,10 +23,14 @@ def fatal(msg=""):
 
 print "Detected machine characteristics:"
 mach = util.get_platform()
-print mach
+# print mach
 
 # get all subprograms
 progs = util.subprogram_commands()
+
+# first do the cmake build of the apps, which should fetch all the relevant dependencies
+util.mkdirp( util.builddir )
+sub.call(["cmake", ".."], cwd=util.builddir, stdout=util.FNULL)
 
 # iterate over them, check if they are present, if not, fetch them
 for name, cmd in progs.iteritems():

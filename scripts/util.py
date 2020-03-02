@@ -122,20 +122,23 @@ def call_wrapped( name, edge_list, args, extra=[] ):
 # basedir = os.path.abspath( os.path.dirname(sys.argv[0]) )
 basedir = os.path.abspath( os.path.realpath( os.path.join(
             os.path.dirname( os.path.abspath( os.path.realpath( __file__ ))),
-            "../deps/")))
+            "..")))
+depsdir = os.path.abspath( os.path.join(basedir, "deps/") )
+bindir = os.path.abspath( os.path.join(basedir, "bin/") )
+builddir = os.path.abspath( os.path.join(basedir, "build/") )
 
 # We currently expect all sub-programs to be located in sub-directories of our tool.
 # Maybe this should go into a config file which also allows to use actual commands,
 # in case that raxml-ng or mptp is actually installed on the system already.
 prog_paths = OrderedDict([
-    ("pargenes",           [basedir + "/ParGenes/is_installed_"]),
-    ("raxml-ng",           [basedir + "/ParGenes/raxml-ng/bin/"]),
-    ("libgenesis.so",      [basedir + "/genesis/bin/"]),
-    ("alignment_splitter", [basedir + "/genesis/bin/apps/"]),
-    ("get_rooting",        [basedir + "/genesis/bin/apps/"]),
-    ("phy2fasta",          [basedir + "/genesis/bin/apps/"]),
-    ("msa_bootstrap",      [basedir + "/genesis/bin/apps/"]),
-    ("mptp",               [basedir + "/mptp/bin/"])
+    ("pargenes",           [depsdir + "/ParGenes/is_installed_"]),
+    ("raxml-ng",           [depsdir + "/ParGenes/raxml-ng/bin/"]),
+    ("libgenesis.a",       [depsdir + "/genesis/bin/"]),
+    ("alignment_splitter", [bindir + "/"]),
+    ("get_rooting",        [bindir + "/"]),
+    ("phy2fasta",          [bindir + "/"]),
+    ("msa_bootstrap",      [bindir + "/"]),
+    ("mptp",               [depsdir + "/mptp/bin/"])
 ])
 
 FNULL = open(os.devnull, 'wb')
@@ -209,7 +212,7 @@ def try_resolve_raxmlng(machine = get_platform()):
 
     (oper, arch, intrin) = machine
 
-    raxmldir = os.path.join(basedir, "ParGenes/raxml-ng")
+    raxmldir = os.path.join(depsdir, "ParGenes/raxml-ng")
 
     sub.call(["mkdir", "-p", os.path.join(raxmldir, "build")], stdout=FNULL)
     sub.call(["cmake", ".."], cwd=os.path.join(raxmldir, "build"), stdout=FNULL)
@@ -235,7 +238,7 @@ def try_resolve_raxmlng(machine = get_platform()):
 
 
 def try_resolve_mptp(machine = get_platform()):
-    mptpdir = os.path.join(basedir, "mptp")
+    mptpdir = os.path.join(depsdir, "mptp")
     # modify the config file, disabling gsl
     sub.call(["sed", "-i", '45,46 s/^/#/', "configure.ac"], cwd=mptpdir)
     # autogen, configure, make
@@ -244,36 +247,27 @@ def try_resolve_mptp(machine = get_platform()):
     return sub.call(["make", "-C", mptpdir], stdout=FNULL)
 
 def try_resolve_genesis(machine = get_platform()):
-    genesisdir = os.path.join(basedir, "genesis")
-    # make genesis
-    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+    mkdirp( builddir )
+    sub.call(["cmake", ".."], cwd=builddir, stdout=FNULL)
+    return sub.call(["make", "-C", builddir], stdout=FNULL)
 
 def try_resolve_alignment_splitter(machine = get_platform()):
-    genesisdir = os.path.join(basedir, "genesis")
-    # ensure the symlink exists
-    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/alignment_splitter.cpp"))], stdout=FNULL)
-
-    # make update on genesis
-    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
+    mkdirp( builddir )
+    sub.call(["cmake", ".."], cwd=builddir, stdout=FNULL)
+    return sub.call(["make", "update", "-C", builddir], stdout=FNULL)
 
 def try_resolve_phy2fasta(machine = get_platform()):
-    genesisdir = os.path.join(basedir, "genesis")
-    # ensure the symlink exists
-    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/phy2fasta.cpp"))], stdout=FNULL)
-
-    # make update on genesis
-    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
+    mkdirp( builddir )
+    sub.call(["cmake", ".."], cwd=builddir, stdout=FNULL)
+    return sub.call(["make", "update", "-C", builddir], stdout=FNULL)
 
 def try_resolve_msa_bootstrap(machine = get_platform()):
-    genesisdir = os.path.join(basedir, "genesis")
-    # ensure the symlink exists
-    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/msa_bootstrap.cpp"))], stdout=FNULL)
-
-    # make update on genesis
-    return sub.call(["make", "-C", genesisdir], stdout=FNULL)
+    mkdirp( builddir )
+    sub.call(["cmake", ".."], cwd=builddir, stdout=FNULL)
+    return sub.call(["make", "update", "-C", builddir], stdout=FNULL)
 
 def try_resolve_pargenes(machine = get_platform()):
-  pargenesdir = os.path.join(basedir, "ParGenes")
+  pargenesdir = os.path.join(depsdir, "ParGenes")
   # print(pargenesdir)
   res = sub.call(['./install.sh'], cwd=pargenesdir, shell=True, stdout=FNULL)
   if (0 == res):
@@ -281,12 +275,9 @@ def try_resolve_pargenes(machine = get_platform()):
   return res
 
 def try_resolve_get_rooting(machine = get_platform()):
-    genesisdir = os.path.join(basedir, "genesis")
-    # ensure the symlink exists
-    sub.call(["ln", "-sft", os.path.join( genesisdir, "apps" ), os.path.abspath(os.path.join(basedir, "../src/get_rooting.cpp"))], stdout=FNULL)
-
-    # make update on genesis
-    return sub.call(["make", "update", "-C", genesisdir], stdout=FNULL)
+    mkdirp( builddir )
+    sub.call(["cmake", ".."], cwd=builddir, stdout=FNULL)
+    return sub.call(["make", "update", "-C", builddir], stdout=FNULL)
 
 def try_resolve(name, machine = get_platform()):
     print "Trying to resolve " + name + "..."
