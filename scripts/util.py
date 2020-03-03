@@ -271,7 +271,7 @@ def try_resolve_pargenes(machine = get_platform()):
   # print(pargenesdir)
   res = sub.call(['./install.sh'], cwd=pargenesdir, shell=True, stdout=FNULL)
   if (0 == res):
-    sub.call(['touch', os.path.join(pargenesdir, "is_installed_pargenes")])
+    sub.call(['touch', os.path.join(pargenesdir, "is_installed_")])
   return res
 
 def try_resolve_get_rooting(machine = get_platform()):
