@@ -22,15 +22,17 @@ Thats it! now you can even skip the remaining installation instructions.
 
 #### Satisfying Dependencies
 
-<!-- Required python version:
+Required python version:
 
-    > 2.7.6 -->
+    2.7
 
 In terms of python packages:
 
     numpy
+    futures
+    argparse
 
-For MPI, we need
+If you want MPI, we need
 
     sudo pip install mpi4py
 
