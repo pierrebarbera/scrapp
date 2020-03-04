@@ -88,7 +88,7 @@ The [test folder](test/) contains a small test dataset, as well as a small [shel
 
 ## Citing SCRAPP
 
-If you use SCRAPP, please cite the following papers:
+If you use SCRAPP, please cite the following papers ([bibtex here](doc/cite.bib)):
 
 > SCRAPP: A tool to assess the diversity of microbial samples from phylogenetic placements<br />
 > Pierre Barbera, Lucas Czech, Sarah Lutteropp, and Alexandros Stamatakis.<br />
