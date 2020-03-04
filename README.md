@@ -52,7 +52,7 @@ Perhaps the most robust route to setting up SCRAPP is to do a recursive clone of
 git clone --recursive https://github.com/Pbdas/scrapp.git
 ```
 
-<!-- Alternatively, if the code was downloaded as an archive of the source folder, the setup script _should_ fetch the source tree dependencies automatically (if there is an internet connection). -->
+Alternatively, if the code was downloaded as an archive of the source folder, the setup script _should_ fetch the source tree dependencies automatically (if there is an internet connection).
 
 
 #### Building SCRAPP
@@ -61,6 +61,13 @@ When all dependencies are there, a simple call to
 ./setup.py
 ```
 should take care of the rest!
+
+#### Testing the Installation
+Optionally, you can check if everything worked correctly by calling
+```
+./test/test.sh
+```
+from the main SCRAPP folder.
 
 ## Usage
 Simple call for a common combination of files, using 4 threads:
@@ -73,6 +80,11 @@ or with MPI:
 ```
 ./scrapp.py --jplace epa_result.jplace --alignment query.fasta --parallel mpi --threads 4
 ```
+
+### Test Data
+
+The [test folder](test/) contains a small test dataset, as well as a small [shell script](test/test.sh) showcasing how to use the program.
+
 
 ## Citing SCRAPP
 
