@@ -12,8 +12,6 @@ import pprint
 
 base_dir_ = os.path.dirname( os.path.realpath(__file__) )
 
-FNULL = open(os.devnull, 'wb')
-
 # ==================================================================================================
 #     Command Line Args
 # ==================================================================================================
@@ -391,7 +389,12 @@ if __name__ == "__main__":
         err_file_path=pargenes_out_file,
         verbose=args.verbose
     ) ):
+        # cat the pargenes log
+        util.echo_file( pargenes_out_file )
+        util.echo_file( os.path.join( args.work_dir, "pargenes_out", "report.txt" ) )
+        # raise the error
         raise RuntimeError( "pargenes has failed!" )
+
     runtime = time.time() - runtime
     runtimes.append({"name":"pargenes", "time":runtime})
 

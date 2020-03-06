@@ -12,6 +12,7 @@ Species Counting on Reference trees viA Phylogenetic Placements
 
 <!--
 ### Through Conda
+The simplest, self contained way to get and set up SCRAPP:
 ```
 conda install -c bioconda scrapp
 ```

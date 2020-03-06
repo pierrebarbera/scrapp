@@ -10,7 +10,7 @@ import scripts.util as util
 
 import subprocess as sub
 
-FNULL = open(os.devnull, 'wb')
+# FNULL = open(os.devnull, 'wb')
 
 # a wrapper script to parallelize many calls to msa_bootstrap, using threading or MPI, depending on how it was called
 
@@ -185,7 +185,7 @@ def run_func( edge_dir, args ):
 
         # rename the resulting tree
         sub.call(["ln", "-s", os.path.join( trees_eval_out_dir, name + ".raxml.bestTree" ),
-                                os.path.abspath(os.path.join( trees_eval_out_dir, name + ".newick"))], stdout=FNULL)
+                                os.path.abspath(os.path.join( trees_eval_out_dir, name + ".newick"))], stdout=util.FNULL)
 
     return 0
 

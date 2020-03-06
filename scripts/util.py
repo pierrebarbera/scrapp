@@ -8,6 +8,11 @@ from shutil import rmtree
 
 scripts_dir_ = os.path.dirname( os.path.realpath(__file__) )
 
+def echo_file( file ):
+    if os.path.isfile( file ):
+        with open( file, 'r') as file_h:
+            print file_h.read()
+
 def clean_dir( path ):
     if os.path.exists( path ):
         rmtree( path, ignore_errors=True )
