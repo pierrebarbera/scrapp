@@ -358,7 +358,7 @@ if __name__ == "__main__":
     model_path = os.path.join(pargenes_out, "raxml.model" )
 
     with open( model_path, "w+") as f:
-        f.write("--blopt nr_safe --force model_lh_impr --model {}".format(model))
+        f.write("--blopt nr_safe --force model_lh_impr --model {}\n".format(model))
 
 
     if ( args.parallel == "threads" ):
