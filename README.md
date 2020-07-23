@@ -2,8 +2,7 @@
 
 1. **[Introduction](#introduction)**
 2. **[Usage](#usage)**
-2. **[Installation](#installation)**
-3. **[Usage](#usage)**
+3. **[Installation](#installation)**
 4. **[Citing SCRAPP](#citing-scrapp)**
 
 ## Introduction
@@ -94,10 +93,15 @@ Additionally there are a few important but optional settings worth considering.
 |`--no-cleanup` | Keep all intermediate files (WARNING: could be millions!) |
 |`--seed` | Random number generator seed |
 
+### Test Data
+
+The [test folder](test/) contains a small test dataset, as well as a small [shell script](test/test.sh) showcasing how to use the program.
+
 ## Installation
 
 <!--
 ### Through Conda
+The simplest, self contained way to get and set up SCRAPP:
 ```
 conda install -c bioconda scrapp
 ```
@@ -107,7 +111,6 @@ Thats it! now you can even skip the remaining installation instructions.
 ### From Source
 
 #### Satisfying Dependencies
-
 (The installation commands here are an example as it would look using Ubuntu. Your system may have different package names)
 
 First you definitely want to be able to compile everything, so make sure you have the following:
@@ -120,7 +123,7 @@ As SCRAPP depends on raxml-ng, you want to ensure that you also have the followi
 
 SCRAPP requires python 2.7, as well as the following python packages:
 
-    numpy mpi4py
+    numpy mpi4py futures argparse
 
 Then, for the mpi mode we require some version of mpi:
 
@@ -138,6 +141,8 @@ Perhaps the most robust route to setting up SCRAPP is to do a recursive clone of
 git clone --recursive https://github.com/Pbdas/scrapp.git
 ```
 
+Alternatively, if the code was downloaded as an archive of the source folder, the setup script _should_ fetch the source tree dependencies automatically (if there is an internet connection).
+
 #### Building SCRAPP
 When all dependencies are there, a simple call to
 ```
@@ -145,9 +150,16 @@ When all dependencies are there, a simple call to
 ```
 should take care of the rest!
 
+#### Testing the Installation
+Optionally, you can check if everything worked correctly by calling
+```
+./test/test.sh
+```
+from the main SCRAPP folder.
+
 ## Citing SCRAPP
 
-If you use SCRAPP, please cite the following papers:
+If you use SCRAPP, please cite the following papers ([bibtex here](doc/cite.bib)):
 
 > SCRAPP: A tool to assess the diversity of microbial samples from phylogenetic placements<br />
 > Pierre Barbera, Lucas Czech, Sarah Lutteropp, and Alexandros Stamatakis.<br />
