@@ -27,14 +27,15 @@ def command_line_args_parser():
     # arguments than having to rely on their order (i.e., use positional arguments instead).
     parser = argparse.ArgumentParser(
         description="Pipeline wrapper script that calculates species counts for each branch of a "
-        "reference tree from phylogenetic placement of reads on that tree."
+        "reference tree from phylogenetic placement of reads on that tree.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser_required_named_arg_group = parser.add_argument_group('required named arguments')
 
     # Add required named args.
     parser_required_named_arg_group.add_argument(
         "-j", "--jplace",
-        help="The jplace file path containing the tree and the placement of reads on its branches.",
+        help="Path to the `.jplace` file produced by phylogenetic placement",
         action='store',
         dest='jplace_file',
         type=str,
@@ -42,7 +43,7 @@ def command_line_args_parser():
     )
     parser_required_named_arg_group.add_argument(
         "-a", "--alignment",
-        help="The alignment file path containing the alignment of the reads. Fasta or Phylip format.",
+        help="Path to the multiple sequence alignment of the query sequences as used during phylogenetic placement (fasta or phylip)",
         action='store',
         dest='aln_file',
         type=str,
@@ -52,7 +53,7 @@ def command_line_args_parser():
     # Add optional args.
     parser.add_argument(
         '-t', '--num-threads',
-        help="Number of threads to run for parallelization.",
+        help="Threads / cores to use in parallel. Has to specify number of available MPI ranks when used with `mpi` mode!",
         action='store',
         dest='num_threads',
         type=int,
@@ -67,14 +68,14 @@ def command_line_args_parser():
 
     parser.add_argument(
         '--bootstrap',
-        help="Enables bootstrapping after per-edge tree search to obtain diversity variance.",
+        help="Enables bootstrapping after per-edge tree search to obtain diversity variance",
         action='store_true',
         dest='bootstrap',
     )
 
     parser.add_argument(
         '--bootstrap-num-replicates',
-        help="Number of replicates to generate for each valid edge when using bootstrap mode.",
+        help="Number of replicates to generate for each valid edge when using bootstrap mode",
         action='store',
         dest='num_reps',
         type=int,
@@ -83,7 +84,7 @@ def command_line_args_parser():
 
     parser.add_argument(
         '--min-queries',
-        help="If an edge contains a number of unique queries below this value, ignore the edge.",
+        help="If an edge contains a number of unique queries below this value, ignore the edge",
         action='store',
         dest='min_query',
         type=int,
@@ -91,7 +92,7 @@ def command_line_args_parser():
     )
     parser.add_argument(
         '-c', '--cluster-above',
-        help="If an edge contains a number of unique queries above this value, apply clustering.",
+        help="If an edge contains a number of unique queries above this value, apply clustering",
         action='store',
         dest='max_query',
         type=int,
@@ -100,7 +101,7 @@ def command_line_args_parser():
 
     parser.add_argument(
         "--ref-align-outgrouping",
-        help="Root the placement trees by using the farthest taxon of the ref tree as an outgroup. Option specifies the reference alignment.",
+        help="Reference alignment from which to obtain outgroup sequences for the inferences, toggles on outgroup mode",
         action="store",
         type=str,
         dest="reference_alignment"
@@ -108,14 +109,14 @@ def command_line_args_parser():
 
     parser.add_argument(
         '--test',
-        help="Test the pipeline with the first x edges.",
+        help="Test the pipeline with the first x edges",
         action='store',
         dest='test_size',
         type=int,
     )
     parser.add_argument(
         '-p', '--parallel',
-        help="Parallelization strategy to use. Either 'threads' or 'mpi'.",
+        help="Parallelization strategy to use. Either 'threads' or 'mpi'",
         action='store', dest='parallel',
         choices=[ "threads", "mpi" ],
         default="threads"
@@ -129,7 +130,7 @@ def command_line_args_parser():
 
     parser.add_argument(
         '-w', '--work-dir',
-        help="Directory path for intermediate work files.",
+        help="The output directory, including intermediate files",
         action='store',
         dest='work_dir',
         type=str,
@@ -137,15 +138,15 @@ def command_line_args_parser():
     )
     parser.add_argument(
         "--verbose",
-        help="Increase output verbosity.",
+        help="Increase output verbosity",
         action="store_true"
     )
 
     parser.add_argument(
         "--no-cleanup",
-        help="Specify if all intermediate files should be kept (potentially thousands!).",
-        action="store_false",
-        dest='cleanup'
+        help="Keep all intermediate files (WARNING: could be millions!)",
+        action="store_true",
+        dest='no_cleanup'
     )
 
     # Add min weight arg, restricted to a certain range, also optional.
@@ -156,7 +157,7 @@ def command_line_args_parser():
         return x
     parser.add_argument(
         '--min-weight',
-        help="Minimum weight threshold for placements. Everything below is filtered out.",
+        help="Exclude any placements with a LWR below this value",
         action='store', dest='min_weight',
         type=min_weight_float,
         default=0.5
@@ -164,7 +165,7 @@ def command_line_args_parser():
 
     parser.add_argument(
         '--seed',
-        help="Random number generator seed.",
+        help="Random number generator seed",
         action='store',
         dest='seed',
         type=int
@@ -191,6 +192,11 @@ def command_line_args_postprocessor( args ):
     Given the result of argsparse.parse_args(), this function does some specific post-processing
     that we want for our command line arguments.
     """
+    # if the user wants mpi, check that it's actually available
+    if args.parallel == "mpi":
+        expect_executable_exists( "mpiexec" )
+        if args.num_threads == 0:
+            raise RuntimeError( "mpi mode requires explicit specification of available cores (mpi ranks) via --num-threads!")
 
     # If user did not provide number of threads, use all available ones.
     if args.num_threads == 0:
@@ -208,10 +214,6 @@ def command_line_args_postprocessor( args ):
     # expect_dir_exists( args.work_dir )
     expect_file_exists( args.jplace_file )
     expect_file_exists( args.aln_file )
-
-    # if the user wants mpi, check that it's actually available
-    if args.parallel == "mpi":
-        expect_executable_exists( "mpiexec" )
 
     return args
 
@@ -405,7 +407,7 @@ if __name__ == "__main__":
             mkdirp( edge_search_dir )
             shutil.copy( filename, edge_search_dir )
     # post-pargenes cleanup
-    if args.cleanup:
+    if not args.no_cleanup:
         clean_dir( pargenes_msas_dir )
         clean_dir( pargenes_out )
 
@@ -414,7 +416,7 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     if args.bootstrap:
         extra = ["--model", model, "--num-replicates", str(args.num_reps) ]
-        if not args.cleanup:
+        if args.no_cleanup:
             extra.extend(["--no-cleanup"])
         runtimes += call_wrapped( "msa_bootstrap", edge_list, args, extra )
     # -------------------------------------------------------------------------
@@ -428,7 +430,7 @@ if __name__ == "__main__":
     # -------------------------------------------------------------------------
     #     Species Delimitation
     # -------------------------------------------------------------------------
-    extra = ["--no-cleanup"] if not args.cleanup else []
+    extra = ["--no-cleanup"] if args.no_cleanup else []
     runtimes += call_wrapped( "mptp", edge_list, args, extra )
 
     # -------------------------------------------------------------------------
@@ -465,7 +467,7 @@ if __name__ == "__main__":
         f.write( output.annotated_tree("species-count", "count_median", alias_name="species_count") )
 
     # bootstrap mode cleanup to prevent millions of files
-    if args.bootstrap and args.cleanup:
+    if args.bootstrap and not args.no_cleanup:
         for d in edge_list:
             clean_dir( os.path.join( d, "trees" ) )
             clean_dir( os.path.join( d, "delimit" ) )
