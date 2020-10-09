@@ -163,7 +163,7 @@ If you use SCRAPP, please cite the following papers ([bibtex here](doc/cite.bib)
 
 > SCRAPP: A tool to assess the diversity of microbial samples from phylogenetic placements<br />
 > Pierre Barbera, Lucas Czech, Sarah Lutteropp, and Alexandros Stamatakis.<br />
-> bioRxiv, 2020. https://doi.org/10.1101/2020.02.28.969980
+> Mol Ecol Resour 2020; 00: 000– 000. https://doi.org/10.1111/1755-0998.13255
 
 > Multi-rate Poisson tree processes for single-locus species delimitation under maximum likelihood and Markov chain Monte Carlo<br />
 > Paschalia Kapli, Sarah Lutteropp, Jiajie Zhang, Kassian Kobert, Pavlos Pavlidis, Alexandros Stamatakis, Tomáš Flouri<br />
